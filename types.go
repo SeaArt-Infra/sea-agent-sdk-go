@@ -67,6 +67,12 @@ type AgentListOptions struct {
 	Offset   int
 }
 
+type HookListOptions struct {
+	Search string
+	Limit  int
+	Offset int
+}
+
 type ChatEventsOptions struct {
 	AfterSeq int
 	Limit    int

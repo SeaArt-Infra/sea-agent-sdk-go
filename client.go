@@ -11,6 +11,7 @@ type Client struct {
 	Tools     *ToolsResource
 	Skills    *SkillsResource
 	Agents    *AgentsResource
+	Hooks     *HooksResource
 	Chat      *ChatResource
 }
 
@@ -28,6 +29,7 @@ func NewClient(options ClientOptions) *Client {
 	client.Tools = &ToolsResource{transport: transport}
 	client.Skills = &SkillsResource{transport: transport}
 	client.Agents = &AgentsResource{transport: transport}
+	client.Hooks = &HooksResource{transport: transport}
 	client.Chat = &ChatResource{transport: transport}
 
 	return client
