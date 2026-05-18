@@ -302,6 +302,11 @@ fmt.Printf("%#v\n", result)
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	Category: "fabric",
 	AgentConfig: map[string]any{
+		"agent": map[string]any{
+			"name":          "inline-sandbox-agent",
+			"model":         "gpt-4.1-mini",
+			"system_prompt": "Build and modify React apps inside the sandbox.",
+		},
 		"runtime": map[string]any{
 			"sandbox": map[string]any{
 				"sandbox_template": "react-game",
