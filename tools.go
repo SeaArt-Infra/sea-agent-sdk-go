@@ -39,9 +39,7 @@ func (r *ToolsResource) Update(ctx context.Context, toolID string, payload any) 
 
 func (r *ToolsResource) Delete(ctx context.Context, toolID string, options DeleteOptions) (any, error) {
 	var result any
-	err := r.transport.DeleteJSON(ctx, "/v1/tools/"+urlEscape(toolID), QueryParams{
-		"operator_id": options.OperatorID,
-	}, &result)
+	err := r.transport.DeleteJSON(ctx, "/v1/tools/"+urlEscape(toolID), nil, &result)
 	return result, err
 }
 

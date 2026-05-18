@@ -40,8 +40,6 @@ func (r *SkillsResource) Update(ctx context.Context, skillID string, payload any
 
 func (r *SkillsResource) Delete(ctx context.Context, skillID string, options DeleteOptions) (any, error) {
 	var result any
-	err := r.transport.DeleteJSON(ctx, "/v1/skills/"+urlEscape(skillID), QueryParams{
-		"operator_id": options.OperatorID,
-	}, &result)
+	err := r.transport.DeleteJSON(ctx, "/v1/skills/"+urlEscape(skillID), nil, &result)
 	return result, err
 }
