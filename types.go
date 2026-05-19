@@ -29,7 +29,6 @@ type CatalogListOptions struct {
 	CapabilityType string
 	Search         string
 	Status         string
-	SourceKind     string
 	Public         *bool
 	Provider       string
 	Limit          int
@@ -46,13 +45,12 @@ type ToolListOptions struct {
 }
 
 type SkillListOptions struct {
-	Search     string
-	Status     string
-	SourceKind string
-	Public     *bool
-	Provider   string
-	Limit      int
-	Offset     int
+	Search   string
+	Status   string
+	Public   *bool
+	Provider string
+	Limit    int
+	Offset   int
 }
 
 type AgentListOptions struct {
