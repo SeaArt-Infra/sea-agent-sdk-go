@@ -20,7 +20,9 @@ func (r *AgentsResource) Update(ctx context.Context, agentID string, payload any
 
 func (r *AgentsResource) Delete(ctx context.Context, agentID string, options DeleteOptions) (any, error) {
 	var result any
-	err := r.transport.DeleteJSON(ctx, "/v1/agents/"+urlEscape(agentID), nil, &result)
+	err := r.transport.DeleteJSON(ctx, "/v1/agents/"+urlEscape(agentID), QueryParams{
+		"operator_id": options.OperatorID,
+	}, &result)
 	return result, err
 }
 

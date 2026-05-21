@@ -60,6 +60,8 @@ apiKey: sa-xxxxxxxx
 
 `X-User-ID` 用于 `tools`、`skills`、`agents` 的注册和更新接口，`agent-gateway` 会用它写入 provider、owner 和操作人字段。也可以通过 `ClientOptions.Headers` 配置其他全局请求头。
 
+列表接口的筛选字段与 CLI/gateway 保持兼容：常用字段包括 `Search`、`Status`、`Provider`、`Public`、`Limit`、`Offset`；兼容字段包括 `SourceKind`、`OwnerID`、`Category`。分页行为与 CLI 一致：`Limit` 省略或 `<= 0` 时默认 20，`> 200` 时由 gateway 封顶为 200，`Offset` 从 0 开始。
+
 ## 基础示例
 
 查询工具列表：
@@ -426,18 +428,18 @@ Hook 使用 `ClientOptions.APIKey` 作为 `Authorization: Bearer ...`，payload 
 - `client.Tools.List(ctx, options)`
 - `client.Tools.Get(ctx, toolID)`
 - `client.Tools.Update(ctx, toolID, payload)`
-- `client.Tools.Delete(ctx, toolID, options)`
+- `client.Tools.Delete(ctx, toolID, options)`，`options.OperatorID` 会作为兼容查询参数透传；实际鉴权仍建议通过 `X-User-ID` header 配置。
 - `client.Tools.Resolve(ctx, toolID)`
 - `client.Skills.Register(ctx, payload)`
 - `client.Skills.List(ctx, options)`
 - `client.Skills.Get(ctx, skillID)`
 - `client.Skills.Update(ctx, skillID, payload)`
-- `client.Skills.Delete(ctx, skillID, options)`
+- `client.Skills.Delete(ctx, skillID, options)`，`options.OperatorID` 会作为兼容查询参数透传；实际鉴权仍建议通过 `X-User-ID` header 配置。
 - `client.Agents.Register(ctx, payload)`
 - `client.Agents.List(ctx, options)`
 - `client.Agents.Get(ctx, agentID)`
 - `client.Agents.Update(ctx, agentID, payload)`
-- `client.Agents.Delete(ctx, agentID, options)`
+- `client.Agents.Delete(ctx, agentID, options)`，`options.OperatorID` 会作为兼容查询参数透传；实际鉴权仍建议通过 `X-User-ID` header 配置。
 - `client.Agents.Capabilities(ctx, agentID)`
 - `client.Hooks.Register(ctx, payload)`
 - `client.Hooks.List(ctx, options)`

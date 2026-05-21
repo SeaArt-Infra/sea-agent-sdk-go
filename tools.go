@@ -15,12 +15,15 @@ func (r *ToolsResource) Register(ctx context.Context, payload any) (any, error) 
 func (r *ToolsResource) List(ctx context.Context, options ToolListOptions) (any, error) {
 	var result any
 	err := r.transport.GetJSON(ctx, "/v1/tools", QueryParams{
-		"search":   options.Search,
-		"status":   options.Status,
-		"public":   options.Public,
-		"provider": options.Provider,
-		"limit":    options.Limit,
-		"offset":   options.Offset,
+		"search":      options.Search,
+		"status":      options.Status,
+		"source_kind": options.SourceKind,
+		"owner_id":    options.OwnerID,
+		"public":      options.Public,
+		"provider":    options.Provider,
+		"category":    options.Category,
+		"limit":       options.Limit,
+		"offset":      options.Offset,
 	}, &result)
 	return result, err
 }
@@ -39,7 +42,9 @@ func (r *ToolsResource) Update(ctx context.Context, toolID string, payload any) 
 
 func (r *ToolsResource) Delete(ctx context.Context, toolID string, options DeleteOptions) (any, error) {
 	var result any
-	err := r.transport.DeleteJSON(ctx, "/v1/tools/"+urlEscape(toolID), nil, &result)
+	err := r.transport.DeleteJSON(ctx, "/v1/tools/"+urlEscape(toolID), QueryParams{
+		"operator_id": options.OperatorID,
+	}, &result)
 	return result, err
 }
 
