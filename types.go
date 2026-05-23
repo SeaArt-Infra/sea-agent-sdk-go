@@ -16,10 +16,6 @@ type ClientOptions struct {
 	HTTPClient *http.Client
 }
 
-type DeleteOptions struct {
-	OperatorID string
-}
-
 type PaginationOptions struct {
 	Limit  int
 	Offset int

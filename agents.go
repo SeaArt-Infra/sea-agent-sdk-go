@@ -18,14 +18,6 @@ func (r *AgentsResource) Update(ctx context.Context, agentID string, payload any
 	return result, err
 }
 
-func (r *AgentsResource) Delete(ctx context.Context, agentID string, options DeleteOptions) (any, error) {
-	var result any
-	err := r.transport.DeleteJSON(ctx, "/v1/agents/"+urlEscape(agentID), QueryParams{
-		"operator_id": options.OperatorID,
-	}, &result)
-	return result, err
-}
-
 func (r *AgentsResource) List(ctx context.Context, options AgentListOptions) (any, error) {
 	var result any
 	err := r.transport.GetJSON(ctx, "/v1/agents", QueryParams{
