@@ -380,7 +380,7 @@ if err != nil {
 fmt.Printf("%#v\n", tool)
 ```
 
-HTTP Tool `service_name` should identify the backing service shared by tools on the same server. If omitted, agent-gateway derives it from the endpoint host prefix; builtin and no-endpoint tools default to `deepagent`. Do not send `inject_user_credentials` in user-facing registration payloads; gateway defaults it to `false` and forwards the managed field to Worker.
+HTTP Tool `service_name` is a top-level Tool field beside `name` and should identify the backing service shared by tools on the same server. If omitted, agent-gateway derives it from the endpoint host prefix; builtin and no-endpoint tools default to `deepagent`. Do not put `service_name` in metadata/config. Do not send `inject_user_credentials` in user-facing registration payloads; gateway manages it as a top-level Tool/Worker field, defaults it to `false`, and forwards it beside `name` to Worker.
 
 注册技能：
 
