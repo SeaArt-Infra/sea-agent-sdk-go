@@ -389,8 +389,8 @@ skill, err := client.Skills.Register(ctx, map[string]any{
 	"name":        "web-research",
 	"description": "Research a topic with web tools.",
 	"instruction": "Search, compare sources, and summarize findings.",
-	"required_tools": []map[string]any{
-		{"ref": "22222222-2222-4222-8222-222222222222"},
+	"required_tools": []string{
+		"22222222-2222-4222-8222-222222222222",
 	},
 	"enabled": true,
 	"public":  false,
@@ -401,6 +401,18 @@ if err != nil {
 
 fmt.Printf("%#v\n", skill)
 ```
+
+`required_tools` / `optional_tools` 传已注册 HTTP Tool UUID 时可以直接使用字符串数组；gateway 会自动归一化为 `{"type":"http","ref":"<tool-uuid>"}`。当需要声明非默认类型，或想显式标注 HTTP 类型时，使用对象数组并传 `type` 和 `ref`：
+
+```go
+"required_tools": []map[string]any{
+	{"type": "http", "ref": "22222222-2222-4222-8222-222222222222"},
+	{"type": "builtin", "ref": "seaart:generate_image"},
+	{"type": "mcp", "ref": "filesystem:read_file", "server": "mcp-filesystem"},
+},
+```
+
+对象格式中 `type` 是必填字段，取值为 `http`、`http_batch`、`builtin` 或 `mcp`；`mcp` 还必须传 `server`。不要用 Tool `name` 或旧的 `tool_key` 作为 `ref`；HTTP/HTTP Batch 以及已注册 builtin 工具应使用 gateway 返回的 Tool UUID。
 
 Skill 运行时规则：
 
