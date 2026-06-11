@@ -7,6 +7,7 @@ type QueryParams map[string]any
 type Config struct {
 	Endpoint string `yaml:"endpoint"`
 	APIKey   string `yaml:"apiKey"`
+	UserID   string `yaml:"userId"`
 }
 
 type ClientOptions struct {

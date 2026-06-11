@@ -48,5 +48,13 @@ func NewClientFromConfig(path string) (*Client, error) {
 	return NewClient(ClientOptions{
 		Endpoint: cfg.Endpoint,
 		APIKey:   cfg.APIKey,
+		Headers:  headersFromConfig(cfg),
 	}), nil
+}
+
+func headersFromConfig(cfg Config) map[string]string {
+	if cfg.UserID == "" {
+		return nil
+	}
+	return map[string]string{"X-User-ID": cfg.UserID}
 }

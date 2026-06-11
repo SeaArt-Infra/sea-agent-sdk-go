@@ -40,3 +40,9 @@ func (r *SkillsResource) Update(ctx context.Context, skillID string, payload any
 	err := r.transport.PutJSON(ctx, "/v1/skills/"+urlEscape(skillID), payload, &result)
 	return result, err
 }
+
+func (r *SkillsResource) Delete(ctx context.Context, skillID string) (any, error) {
+	var result any
+	err := r.transport.DeleteJSON(ctx, "/v1/skills/"+urlEscape(skillID), nil, &result)
+	return result, err
+}

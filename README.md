@@ -53,12 +53,13 @@ if err != nil {
 ```yaml
 endpoint: http://127.0.0.1:8080
 apiKey: sa-xxxxxxxx
+userId: production-line-123
 ```
 
 `endpoint` 可以是网关 base URL，也可以已经包含 `/agent-v2`。如果缺少
 `/agent-v2`，SDK 会在发送请求前自动补上。
 
-`X-User-ID` 用于 `tools`、`skills`、`agents` 的注册和更新接口，`agent-gateway` 会用它写入 provider、owner 和操作人字段。也可以通过 `ClientOptions.Headers` 配置其他全局请求头。
+`X-User-ID` 用于 `tools`、`skills`、`agents` 的注册、更新和删除接口，`agent-gateway` 会用它写入 provider、owner 和操作人字段。`NewClientFromConfig` 会把 `userId` 自动映射为 `X-User-ID`，也可以通过 `ClientOptions.Headers` 配置其他全局请求头。
 
 列表接口的筛选字段与 CLI/gateway 保持兼容：常用字段包括 `Search`、`Status`、`Provider`、`Public`、`Limit`、`Offset`；兼容字段包括 `SourceKind`、`OwnerID`、`Category`。分页行为与 CLI 一致：`Limit` 省略或 `<= 0` 时默认 20，`> 200` 时由 gateway 封顶为 200，`Offset` 从 0 开始。
 
@@ -478,15 +479,18 @@ Hook 使用 `ClientOptions.APIKey` 作为 `Authorization: Bearer ...`，payload 
 - `client.Tools.List(ctx, options)`
 - `client.Tools.Get(ctx, toolID)`
 - `client.Tools.Update(ctx, toolID, payload)`
+- `client.Tools.Delete(ctx, toolID)`
 - `client.Tools.Resolve(ctx, toolID)`
 - `client.Skills.Register(ctx, payload)`
 - `client.Skills.List(ctx, options)`
 - `client.Skills.Get(ctx, skillID)`
 - `client.Skills.Update(ctx, skillID, payload)`
+- `client.Skills.Delete(ctx, skillID)`
 - `client.Agents.Register(ctx, payload)`
 - `client.Agents.List(ctx, options)`
 - `client.Agents.Get(ctx, agentID)`
 - `client.Agents.Update(ctx, agentID, payload)`
+- `client.Agents.Delete(ctx, agentID)`
 - `client.Agents.Capabilities(ctx, agentID)`
 - `client.Hooks.Register(ctx, payload)`
 - `client.Hooks.List(ctx, options)`

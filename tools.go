@@ -41,6 +41,12 @@ func (r *ToolsResource) Update(ctx context.Context, toolID string, payload any) 
 	return result, err
 }
 
+func (r *ToolsResource) Delete(ctx context.Context, toolID string) (any, error) {
+	var result any
+	err := r.transport.DeleteJSON(ctx, "/v1/tools/"+urlEscape(toolID), nil, &result)
+	return result, err
+}
+
 func (r *ToolsResource) Resolve(ctx context.Context, toolID string) (any, error) {
 	var result any
 	err := r.transport.GetJSON(ctx, "/v1/tools/"+urlEscape(toolID)+"/resolve", nil, &result)
