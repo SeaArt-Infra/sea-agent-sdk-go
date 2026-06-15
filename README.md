@@ -1,14 +1,41 @@
 # sea-agent-sdk-go
 
-基于当前 `sea-agent-cli` 项目整理出的 Go SDK，用于调用 `agent-gateway` 的注册、查询、聊天、SSE 流式响应和 WebSocket 流式响应接口。
+> Beta: SDK API 和 agent-gateway 行为仍可能随网关版本调整。
 
-## 安装
+Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resource registration, chat completion, SSE streaming, WebSocket streaming, chat replay, and hook management.
+
+## Available Resources
+
+| Resource | Client field | What it does |
+| --- | --- | --- |
+| System | `client.System` | Health and metrics checks |
+| Catalog | `client.Catalog` | List resolved catalog entries |
+| Tools | `client.Tools` | Register, list, update, delete, and resolve tools |
+| Skills | `client.Skills` | Register, list, update, and delete skills |
+| Agents | `client.Agents` | Register, list, update, delete, and inspect agents |
+| Hooks | `client.Hooks` | Register and manage worker event hook endpoints |
+| Chat | `client.Chat` | Run chat, stream chat, replay events, and cancel chats |
+
+## How It Works
+
+1. Create a `Client` with an agent-gateway endpoint and optional API key.
+2. The SDK normalizes the endpoint to include `/agent-v2` when needed.
+3. Each resource helper sends gateway-compatible HTTP requests with global and per-request headers.
+4. Chat helpers can either return a full response or process SSE/WebSocket events through callbacks.
+
+`X-User-ID` is required for `tools`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata. `NewClientFromConfig` maps `userId` from the CLI config to `X-User-ID`.
+
+## Quick Start
+
+Install the module:
 
 ```bash
 go get github.com/SeaVerseAI/sea-agent-sdk-go
 ```
 
-## 初始化
+The current Go module path is still `github.com/SeaVerseAI/sea-agent-sdk-go`; keep imports on that path until the module path is changed in `go.mod`.
+
+Create a client and run a chat request:
 
 ```go
 package main
@@ -22,6 +49,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	client := seaagentsdk.NewClient(seaagentsdk.ClientOptions{
 		Endpoint: "http://127.0.0.1:8080",
 		APIKey:   os.Getenv("AGENT_GATEWAY_API_KEY"),
@@ -30,16 +58,44 @@ func main() {
 		},
 	})
 
-	health, err := client.System.Health(context.Background())
+	result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
+		AgentID: "33333333-3333-4333-8333-333333333333",
+		Message: "Search recent AI news and summarize the top 3 items.",
+	})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%#v\n", health)
+	fmt.Printf("%#v\n", result)
 }
 ```
 
-也可以复用 CLI 的默认配置文件：
+Check gateway health:
+
+```go
+health, err := client.System.Health(context.Background())
+if err != nil {
+	panic(err)
+}
+
+fmt.Println(health)
+```
+
+## Configuration
+
+Pass options directly:
+
+```go
+client := seaagentsdk.NewClient(seaagentsdk.ClientOptions{
+	Endpoint: "http://127.0.0.1:8080",
+	APIKey:   os.Getenv("AGENT_GATEWAY_API_KEY"),
+	Headers: map[string]string{
+		"X-User-ID": "production-line-123",
+	},
+})
+```
+
+Or reuse the CLI config:
 
 ```go
 client, err := seaagentsdk.NewClientFromConfig("")
@@ -48,7 +104,7 @@ if err != nil {
 }
 ```
 
-默认读取 `~/.seaagent/config.yaml`，格式与 CLI 一致：
+By default, the SDK reads `~/.seaagent/config.yaml`:
 
 ```yaml
 endpoint: http://127.0.0.1:8080
@@ -56,20 +112,13 @@ apiKey: sa-xxxxxxxx
 userId: production-line-123
 ```
 
-`endpoint` 可以是网关 base URL，也可以已经包含 `/agent-v2`。如果缺少
-`/agent-v2`，SDK 会在发送请求前自动补上。
+`endpoint` may be the gateway base URL or a URL that already includes `/agent-v2`. The SDK appends `/agent-v2` before sending requests when it is missing.
 
-`X-User-ID` 用于 `tools`、`skills`、`agents` 的注册、更新和删除接口，`agent-gateway` 会用它写入 provider、owner 和操作人字段。`NewClientFromConfig` 会把 `userId` 自动映射为 `X-User-ID`，也可以通过 `ClientOptions.Headers` 配置其他全局请求头。
+## Listing Resources
 
-列表接口的筛选字段与 CLI/gateway 保持兼容：常用字段包括 `Search`、`Status`、`Provider`、`Public`、`Limit`、`Offset`；兼容字段包括 `SourceKind`、`OwnerID`、`Category`。分页行为与 CLI 一致：`Limit` 省略或 `<= 0` 时默认 20，`> 200` 时由 gateway 封顶为 200，`Offset` 从 0 开始。
-
-## 基础示例
-
-查询工具列表：
+List APIs follow CLI and gateway filters. Common filters are `Search`, `Status`, `Provider`, `Public`, `Limit`, and `Offset`. Compatibility filters include `SourceKind`, `OwnerID`, and `Category`.
 
 ```go
-ctx := context.Background()
-
 tools, err := client.Tools.List(ctx, seaagentsdk.ToolListOptions{
 	Provider: "web-tools-mcp",
 	Status:   "active",
@@ -82,21 +131,20 @@ if err != nil {
 fmt.Printf("%#v\n", tools)
 ```
 
-普通非流式聊天：
+Pagination follows the gateway behavior: `Limit` defaults to 20 when omitted or `<= 0`, the gateway caps values above 200, and `Offset` starts at 0.
+
+## Chat Requests
+
+Use `Message` for the common single-user-message case:
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	AgentID: "33333333-3333-4333-8333-333333333333",
-	Message: "Search recent AI news and summarize the top 3 items.",
+	Message: "Fetch https://example.com and explain what it is.",
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", result)
 ```
 
-使用多轮消息：
+Use `Messages` for multi-turn conversations:
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
@@ -106,14 +154,9 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 		{Role: "user", Content: "Fetch https://example.com and explain what it is."},
 	},
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", result)
 ```
 
-使用 OpenAI 风格的多模态消息：
+Use OpenAI-style content parts for multimodal messages:
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
@@ -122,20 +165,15 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 		{
 			Role: "user",
 			Content: []seaagentsdk.ChatContentPart{
-				seaagentsdk.TextChatContent("描述这张图片"),
-				seaagentsdk.ImageURLChatContent("https://image.cdn2.seaart.me/static/infra/agent-chat/user-11/image/20260529/e4fc53aac523b4f56e582a65a717381a.png"),
+				seaagentsdk.TextChatContent("Describe this image."),
+				seaagentsdk.ImageURLChatContent("https://example.com/image.png"),
 			},
 		},
 	},
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", result)
 ```
 
-带请求元数据和自定义 Header 的聊天：
+Attach request metadata and per-request headers when gateway or worker tracing needs them:
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
@@ -152,73 +190,42 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 		"X-Trace-ID": "trace_789",
 	},
 })
+```
+
+`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests.
+
+## Streaming
+
+SSE is the default stream transport and works well with most HTTP gateways and proxies:
+
+```go
+text, err := client.Chat.RunStream(
+	ctx,
+	seaagentsdk.ChatRunOptions{
+		AgentID: "33333333-3333-4333-8333-333333333333",
+		Message: "Fetch https://example.com and summarize it in one paragraph.",
+	},
+	seaagentsdk.ChatStreamHandlers{
+		Transport: seaagentsdk.StreamTransportSSE,
+		OnTextDelta: func(delta string, event seaagentsdk.ChatStreamEvent) {
+			fmt.Print(delta)
+		},
+		OnEvent: func(event seaagentsdk.ChatStreamEvent) {
+			// Record metrics or inspect tool-call events here.
+			_ = event
+		},
+	},
+)
 if err != nil {
 	panic(err)
 }
 
-fmt.Printf("%#v\n", result)
+fmt.Println("\n\nFinal text:", text)
 ```
 
-`request_id`、`category`、`metadata` 会进入 `agent-gateway` 的 chat 请求体；自定义 Headers 会透传给 agent-worker，SSE 和 WebSocket 创建聊天时都支持。
-
-## SSE 流式聊天
-
-SSE 是默认流式传输方式，底层使用 HTTP `text/event-stream`，适合大多数 HTTP 网关和代理场景。
+Switch to WebSocket when the caller wants a persistent connection or already manages WebSocket lifecycle:
 
 ```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"os"
-	"time"
-
-	seaagentsdk "github.com/SeaVerseAI/sea-agent-sdk-go"
-)
-
-func main() {
-	client := seaagentsdk.NewClient(seaagentsdk.ClientOptions{
-		Endpoint: "http://127.0.0.1:8080",
-		APIKey:   os.Getenv("AGENT_GATEWAY_API_KEY"),
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	text, err := client.Chat.RunStream(
-		ctx,
-		seaagentsdk.ChatRunOptions{
-			AgentID: "33333333-3333-4333-8333-333333333333",
-			Message: "Fetch https://example.com and summarize it in one paragraph.",
-		},
-		seaagentsdk.ChatStreamHandlers{
-			Transport: seaagentsdk.StreamTransportSSE,
-			OnTextDelta: func(delta string, event seaagentsdk.ChatStreamEvent) {
-				fmt.Print(delta)
-			},
-			OnEvent: func(event seaagentsdk.ChatStreamEvent) {
-				// 可用于记录日志、统计指标、处理工具调用事件等。
-				_ = event
-			},
-		},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("\n\nFinal text:", text)
-}
-```
-
-## WebSocket 流式聊天
-
-如果调用方希望使用持久连接，或者运行环境已经统一管理 WebSocket 生命周期，可以将 `Transport` 切换为 `StreamTransportWS`。
-
-```go
-ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-defer cancel()
-
 text, err := client.Chat.RunStream(
 	ctx,
 	seaagentsdk.ChatRunOptions{
@@ -237,18 +244,11 @@ text, err := client.Chat.RunStream(
 		},
 	},
 )
-if err != nil {
-	panic(err)
-}
-
-fmt.Println("\n\nFinal text:", text)
 ```
 
-## 订阅已有 Chat
+## Replay an Existing Chat
 
-如果 Chat 由其他进程、浏览器页面或 CLI 创建，可以通过 Chat ID 继续订阅后续事件。`AfterSeq` 用于从指定事件序号之后恢复。
-
-SSE：
+If another process, browser page, or CLI command created the chat, subscribe by chat ID. `AfterSeq` resumes from events after the specified sequence number.
 
 ```go
 chatID := "chat_xxxxxxxxxxxxx"
@@ -273,34 +273,11 @@ if err != nil {
 fmt.Println("\n\nReceived text:", text)
 ```
 
-WebSocket：
+Use `StreamTransportWS` with the same API to replay over WebSocket.
 
-```go
-chatID := "chat_xxxxxxxxxxxxx"
+## Inline Agent Config
 
-text, err := client.Chat.Stream(
-	context.Background(),
-	chatID,
-	seaagentsdk.ChatStreamHandlers{
-		Transport: seaagentsdk.StreamTransportWS,
-		OnTextDelta: func(delta string, event seaagentsdk.ChatStreamEvent) {
-			fmt.Print(delta)
-		},
-	},
-	seaagentsdk.ChatEventsOptions{
-		AfterSeq: 10,
-	},
-)
-if err != nil {
-	panic(err)
-}
-
-fmt.Println("\n\nReceived text:", text)
-```
-
-## 使用内联 Agent 配置
-
-如果不想引用已注册的 Agent ID，可以直接传入 `AgentConfig`。`temperature`、`max_turns`、`timeout` 等运行时字段会由 `agent-gateway` 透传给 agent-worker：
+Pass `AgentConfig` when the request should not reference a registered agent. Runtime fields such as `temperature`, `max_turns`, and `timeout` are forwarded by `agent-gateway` to the worker.
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
@@ -318,14 +295,9 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	},
 	Message: "Explain what agent-gateway does.",
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", result)
 ```
 
-如果 Agent 需要由 `agent-gateway` 自动拉起 sandbox，可以在 `AgentConfig` 中声明 `runtime.sandbox.sandbox_template`。当前支持的模板枚举为 `react-game` 和 `react-web`：
+Declare a sandbox template when the gateway should start a sandbox for the inline agent. Supported template values are `react-game` and `react-web`.
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
@@ -344,27 +316,22 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	},
 	Message: "Create a small React game.",
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", result)
 ```
 
-## 注册 Tool、Skill 和 Agent
+## Register Tools, Skills, and Agents
 
-`agent-gateway` 现在用服务端生成的 UUID `id` 作为唯一资源身份。注册表资源查找和关联都使用 UUID；不要在 payload 中传已经移除的 `tool_key`、`skill_key`、`agent_key` 字段。
+`agent-gateway` uses server-generated UUID `id` values as resource identities. Registry lookup and association should use UUIDs; do not send removed `tool_key`, `skill_key`, or `agent_key` fields.
 
-注册工具：
+Register an HTTP tool:
 
 ```go
 tool, err := client.Tools.Register(ctx, map[string]any{
-	"name":        "search_web",
-	"description": "Search public web pages.",
+	"name":         "search_web",
+	"description":  "Search public web pages.",
 	"runtime_type": "http",
 	"endpoint":     "https://example.com/tools/search",
 	"service_name": "example",
-	"method":      "POST",
+	"method":       "POST",
 	"parameters": map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -375,16 +342,11 @@ tool, err := client.Tools.Register(ctx, map[string]any{
 	"enabled": true,
 	"public":  false,
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", tool)
 ```
 
-HTTP Tool `service_name` is a top-level Tool field beside `name` and should identify the backing service shared by tools on the same server. If omitted, agent-gateway derives it from the endpoint host prefix; builtin and no-endpoint tools default to `deepagent`. Do not put `service_name` in metadata/config. Do not send `inject_user_credentials` in user-facing registration payloads; gateway manages it as a top-level Tool/Worker field, defaults it to `false`, and forwards it beside `name` to Worker.
+`service_name` is a top-level tool field beside `name`. It identifies the backing service shared by tools on the same server. If omitted, the gateway derives it from the endpoint host prefix; builtin and no-endpoint tools default to `deepagent`. Do not put `service_name` in metadata/config, and do not send `inject_user_credentials` in user-facing registration payloads.
 
-注册技能：
+Register a skill:
 
 ```go
 skill, err := client.Skills.Register(ctx, map[string]any{
@@ -397,14 +359,9 @@ skill, err := client.Skills.Register(ctx, map[string]any{
 	"enabled": true,
 	"public":  false,
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", skill)
 ```
 
-`required_tools` / `optional_tools` 传已注册 HTTP Tool UUID 时可以直接使用字符串数组；gateway 会自动归一化为 `{"type":"http","ref":"<tool-uuid>"}`。当需要声明非默认类型，或想显式标注 HTTP 类型时，使用对象数组并传 `type` 和 `ref`：
+When `required_tools` or `optional_tools` contains registered HTTP Tool UUID strings, the gateway normalizes them to `{"type":"http","ref":"<tool-uuid>"}`. Use object entries when you need non-default tool types:
 
 ```go
 "required_tools": []map[string]any{
@@ -414,24 +371,9 @@ fmt.Printf("%#v\n", skill)
 },
 ```
 
-对象格式中 `type` 是必填字段，取值为 `http`、`http_batch`、`builtin` 或 `mcp`；`mcp` 还必须传 `server`。不要用 Tool `name` 或旧的 `tool_key` 作为 `ref`；HTTP/HTTP Batch 以及已注册 builtin 工具应使用 gateway 返回的 Tool UUID。
+`type` is required and must be `http`, `http_batch`, `builtin`, or `mcp`. MCP entries also require `server`. Do not use Tool `name` or old `tool_key` values as `ref`.
 
-Skill 运行时规则：
-
-- `name` 必须匹配 `^[a-z0-9-]+$`，只允许小写字母、数字和连字符；不要使用下划线、空格或大写字母。
-- `description` 必填，建议是一句简短路由说明。注册 Agent 聊天时，gateway 会把它写入 inline `SKILL.md` 的 frontmatter `description`。
-- `instruction` 必填，是完整 markdown body。注册 Agent 聊天时，gateway 会把 Skill 组装为：
-
-```md
----
-name: web-research
-description: Research a topic with web tools.
----
-
-Search, compare sources, and summarize findings.
-```
-
-注册 Agent：
+Register an agent:
 
 ```go
 agent, err := client.Agents.Register(ctx, map[string]any{
@@ -445,14 +387,31 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	},
 	"enabled": true,
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", agent)
 ```
 
-## 注册 Hook endpoint
+## Skill Runtime Rules
+
+| Field | Rule |
+| --- | --- |
+| `name` | Must match `^[a-z0-9-]+$`; use lowercase letters, numbers, and hyphens only |
+| `description` | Required; keep it short because the gateway writes it to inline `SKILL.md` frontmatter |
+| `instruction` | Required; full Markdown body for the skill |
+| `required_tools` / `optional_tools` | Use UUID refs for registered HTTP, HTTP Batch, and registered builtin tools |
+
+When an agent runs with a registered skill, the gateway assembles an inline skill document:
+
+```md
+---
+name: web-research
+description: Research a topic with web tools.
+---
+
+Search, compare sources, and summarize findings.
+```
+
+## Hook Endpoints
+
+Register a hook endpoint for worker events:
 
 ```go
 hook, err := client.Hooks.Register(ctx, map[string]any{
@@ -461,55 +420,33 @@ hook, err := client.Hooks.Register(ctx, map[string]any{
 	"description": "Receives Agent Worker events for the configured API key.",
 	"metadata":    map[string]any{},
 })
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("%#v\n", hook)
 ```
 
-Hook 使用 `ClientOptions.APIKey` 作为 `Authorization: Bearer ...`，payload 中不要传 `api_key`。Worker 固定用 `POST` 调用 endpoint，业务方按事件 payload 中的 `event_id` 自行过滤。
+Hooks use `ClientOptions.APIKey` as `Authorization: Bearer ...`; do not send `api_key` in the payload. Worker calls use `POST`, and the receiver should filter by `event_id` in the event payload when needed.
 
-## 资源接口
+## API Reference
 
-- `client.System.Health(ctx)`
-- `client.System.Metrics(ctx)`
-- `client.Catalog.List(ctx, options)`
-- `client.Tools.Register(ctx, payload)`
-- `client.Tools.List(ctx, options)`
-- `client.Tools.Get(ctx, toolID)`
-- `client.Tools.Update(ctx, toolID, payload)`
-- `client.Tools.Delete(ctx, toolID)`
-- `client.Tools.Resolve(ctx, toolID)`
-- `client.Skills.Register(ctx, payload)`
-- `client.Skills.List(ctx, options)`
-- `client.Skills.Get(ctx, skillID)`
-- `client.Skills.Update(ctx, skillID, payload)`
-- `client.Skills.Delete(ctx, skillID)`
-- `client.Agents.Register(ctx, payload)`
-- `client.Agents.List(ctx, options)`
-- `client.Agents.Get(ctx, agentID)`
-- `client.Agents.Update(ctx, agentID, payload)`
-- `client.Agents.Delete(ctx, agentID)`
-- `client.Agents.Capabilities(ctx, agentID)`
-- `client.Hooks.Register(ctx, payload)`
-- `client.Hooks.List(ctx, options)`
-- `client.Hooks.Get(ctx, hookID)`
-- `client.Hooks.Update(ctx, hookID, payload)`
-- `client.Hooks.Delete(ctx, hookID)`
-- `client.Chat.CreateCompletion(ctx, payload)`
-- `client.Chat.StreamCompletion(ctx, payload, handlers)`
-- `client.Chat.Run(ctx, options)`
-- `client.Chat.RunStream(ctx, options, handlers)`
-- `client.Chat.Get(ctx, chatID)`
-- `client.Chat.Events(ctx, chatID, options)`
-- `client.Chat.Stream(ctx, chatID, handlers, options)`
-- `client.Chat.Cancel(ctx, chatID)`
+| Area | Methods |
+| --- | --- |
+| System | `Health(ctx)`, `Metrics(ctx)` |
+| Catalog | `List(ctx, options)` |
+| Tools | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, toolID)`, `Update(ctx, toolID, payload)`, `Delete(ctx, toolID)`, `Resolve(ctx, toolID)` |
+| Skills | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, skillID)`, `Update(ctx, skillID, payload)`, `Delete(ctx, skillID)` |
+| Agents | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, agentID)`, `Update(ctx, agentID, payload)`, `Delete(ctx, agentID)`, `Capabilities(ctx, agentID)` |
+| Hooks | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, hookID)`, `Update(ctx, hookID, payload)`, `Delete(ctx, hookID)` |
+| Chat | `CreateCompletion(ctx, payload)`, `StreamCompletion(ctx, payload, handlers)`, `Run(ctx, options)`, `RunStream(ctx, options, handlers)`, `Get(ctx, chatID)`, `Events(ctx, chatID, options)`, `Stream(ctx, chatID, handlers, options)`, `Cancel(ctx, chatID)` |
 
-## 调试
+## Debugging
 
-设置环境变量后，SDK 会打印发出的 HTTP 和 WebSocket 请求：
+Set `SEAAGENT_DEBUG=1` to print outgoing HTTP and WebSocket requests:
 
 ```bash
 export SEAAGENT_DEBUG=1
 ```
+
+## Next Steps
+
+- Start with `Chat.Run` for non-streaming requests.
+- Use `Chat.RunStream` with SSE for most streaming integrations.
+- Use `Chat.Stream` with `AfterSeq` to resume an existing chat.
+- Register tools, skills, and agents with UUID-based references only.
