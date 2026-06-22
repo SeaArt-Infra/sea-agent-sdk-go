@@ -1,4 +1,4 @@
-module github.com/SeaVerseAI/sea-agent-sdk-go
+module github.com/SeaArt-Infra/sea-agent-sdk-go
 
 go 1.24.3
 

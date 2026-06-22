@@ -30,10 +30,10 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 Install the module:
 
 ```bash
-go get github.com/SeaVerseAI/sea-agent-sdk-go
+go get github.com/SeaArt-Infra/sea-agent-sdk-go
 ```
 
-The current Go module path is still `github.com/SeaVerseAI/sea-agent-sdk-go`; keep imports on that path until the module path is changed in `go.mod`.
+The current Go module path is `github.com/SeaArt-Infra/sea-agent-sdk-go`.
 
 Create a client and run a chat request:
 
@@ -45,7 +45,7 @@ import (
 	"fmt"
 	"os"
 
-	seaagentsdk "github.com/SeaVerseAI/sea-agent-sdk-go"
+	seaagentsdk "github.com/SeaArt-Infra/sea-agent-sdk-go"
 )
 
 func main() {
