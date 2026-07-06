@@ -1,6 +1,6 @@
 # sea-agent-sdk-go
 
-> Beta: SDK API 和 agent-gateway 行为仍可能随网关版本调整。
+> Beta: SDK APIs and `agent-gateway` behavior may still change with gateway versions.
 
 Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resource registration, chat completion, SSE streaming, WebSocket streaming, chat replay, and hook management.
 
@@ -34,6 +34,8 @@ go get github.com/SeaArt-Infra/sea-agent-sdk-go
 ```
 
 The current Go module path is `github.com/SeaArt-Infra/sea-agent-sdk-go`.
+
+Requires Go 1.24.3 or newer, matching the version declared in `go.mod`.
 
 Create a client and run a chat request:
 
@@ -192,7 +194,7 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
-`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests.
+`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
 
 ## Streaming
 
