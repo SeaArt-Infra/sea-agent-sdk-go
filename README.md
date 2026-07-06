@@ -248,6 +248,56 @@ text, err := client.Chat.RunStream(
 )
 ```
 
+### Worker Stream Event Format
+
+`agent-gateway` forwards worker stream events as SSE blocks or WebSocket messages. The SDK normalizes both transports into `ChatStreamEvent{Event, Data}`. Use `OnTextDelta` for assistant text and `OnEvent` for all raw lifecycle, tool, skill, and terminal events.
+
+SSE frames use the standard event/data envelope:
+
+```text
+event: response.text.delta
+data: {"type":"response.text.delta","response_id":"run_xxx","item_id":"item_run_xxx_msg","output_index":0,"content_index":0,"delta":"hello"}
+```
+
+WebSocket frames carry the same payload under `data`:
+
+```json
+{
+  "event": "response.text.delta",
+  "data": {
+    "type": "response.text.delta",
+    "response_id": "run_xxx",
+    "item_id": "item_run_xxx_msg",
+    "output_index": 0,
+    "content_index": 0,
+    "delta": "hello"
+  }
+}
+```
+
+Common worker event sequence:
+
+| Event | When it appears | Important fields in `Data` |
+| --- | --- | --- |
+| `response.created` | Run accepted and response object created | `type`, `response.id`, `response.status`, `response.model`, `response.metadata` |
+| `response.in_progress` | Run enters processing | `type`, `response.id`, `response.status` |
+| `response.output_item.added` | Assistant message item or tool call item starts | `response_id`, `output_index`, `item.type`, `item.id`, `item.status`; tool calls also include `item.call_id`, `item.name` |
+| `response.content_part.added` | Assistant text content part starts | `response_id`, `item_id`, `output_index`, `content_index`, `part.type` |
+| `response.text.delta` | Assistant text token/chunk | `response_id`, `item_id`, `output_index`, `content_index`, `delta` |
+| `response.function_call_arguments.done` | Tool call arguments are finalized | `response_id`, `item_id`, `call_id`, `name`, `arguments` as a JSON string |
+| `fabric.tool.started` | Worker starts a tool call | `tool.id`, `tool.call_id`, `tool.name`, `tool.status`, `tool.arguments` |
+| `fabric.tool.completed` | Worker finishes a tool call | `tool.status`, `tool.output`, `tool.output_text`, `tool.output_type`; structured tool protocols may add `tool.structured_content`, `tool.protocol_type`, `tool.tool_response` |
+| `fabric.skill.started` | Worker loads a skill through a `read_file` tool call | `skill.id`, `skill.name`, `skill.status`, `skill.path` |
+| `fabric.skill.completed` | Skill file load completes | `skill.status`, `skill.output`, `skill.output_text`, `skill.path` |
+| `response.text.done` | Assistant final text is known | `response_id`, `item_id`, `content_index`, `text` |
+| `response.content_part.done` | Assistant text content part completes | `part.type`, `part.text` |
+| `response.output_item.done` | Assistant message or function call output item completes | `item.type`, `item.status`, `item.content` for messages; `item.call_id`, `item.arguments`, `item.output` for tool calls |
+| `response.completed` | Run completed successfully | `response.id`, `response.status`, `response.usage`, `response.elapsed_ms`, `response.metadata`, `response.output` |
+| `response.failed` | Run failed | `response.status`, `response.error.type`, `response.error.code`, `response.error.message` |
+| `response.cancelled` | Run was cancelled | `response.status`, `response.cancel_reason` |
+
+The SDK accumulates returned text from `response.text.delta`. It also keeps compatibility with legacy `response.output_text.delta`, `chat.response`, and `message.delta` text events. Tool, skill, usage, metadata, and terminal details are not passed to `OnTextDelta`; inspect them in `OnEvent`.
+
 ## Replay an Existing Chat
 
 If another process, browser page, or CLI command created the chat, subscribe by chat ID. `AfterSeq` resumes from events after the specified sequence number.
