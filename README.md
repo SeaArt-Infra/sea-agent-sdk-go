@@ -23,7 +23,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 3. Each resource helper sends gateway-compatible HTTP requests with global and per-request headers.
 4. Chat helpers can either return a full response or process SSE/WebSocket events through callbacks.
 
-`X-User-ID` is required for `tools`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata. `NewClientFromConfig` maps `userId` from the CLI config to `X-User-ID`.
+`X-User-ID` is required for `tools`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata.
 
 ## Quick Start
 
@@ -97,28 +97,11 @@ client := seaagentsdk.NewClient(seaagentsdk.ClientOptions{
 })
 ```
 
-Or reuse the CLI config:
-
-```go
-client, err := seaagentsdk.NewClientFromConfig("")
-if err != nil {
-	panic(err)
-}
-```
-
-By default, the SDK reads `~/.seaagent/config.yaml`:
-
-```yaml
-endpoint: http://127.0.0.1:8080
-apiKey: sa-xxxxxxxx
-userId: production-line-123
-```
-
 `endpoint` may be the gateway base URL or a URL that already includes `/agent-v2`. The SDK appends `/agent-v2` before sending requests when it is missing.
 
 ## Listing Resources
 
-List APIs follow CLI and gateway filters. Common filters are `Search`, `Status`, `Provider`, `Public`, `Limit`, and `Offset`. Compatibility filters include `SourceKind`, `OwnerID`, and `Category`.
+List APIs pass gateway filters through SDK option structs. Common filters are `Search`, `Status`, `Provider`, `Public`, `Limit`, and `Offset`. Compatibility filters include `SourceKind`, `OwnerID`, and `Category`.
 
 ```go
 tools, err := client.Tools.List(ctx, seaagentsdk.ToolListOptions{
@@ -300,7 +283,7 @@ The SDK accumulates returned text from `response.text.delta`. It also keeps comp
 
 ## Replay an Existing Chat
 
-If another process, browser page, or CLI command created the chat, subscribe by chat ID. `AfterSeq` resumes from events after the specified sequence number.
+If another SDK client or application created the chat, subscribe by chat ID. `AfterSeq` resumes from events after the specified sequence number.
 
 ```go
 chatID := "chat_xxxxxxxxxxxxx"
@@ -487,14 +470,6 @@ Hooks use `ClientOptions.APIKey` as `Authorization: Bearer ...`; do not send `ap
 | Agents | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, agentID)`, `Update(ctx, agentID, payload)`, `Delete(ctx, agentID)`, `Capabilities(ctx, agentID)` |
 | Hooks | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, hookID)`, `Update(ctx, hookID, payload)`, `Delete(ctx, hookID)` |
 | Chat | `CreateCompletion(ctx, payload)`, `StreamCompletion(ctx, payload, handlers)`, `Run(ctx, options)`, `RunStream(ctx, options, handlers)`, `Get(ctx, chatID)`, `Events(ctx, chatID, options)`, `Stream(ctx, chatID, handlers, options)`, `Cancel(ctx, chatID)` |
-
-## Debugging
-
-Set `SEAAGENT_DEBUG=1` to print outgoing HTTP and WebSocket requests:
-
-```bash
-export SEAAGENT_DEBUG=1
-```
 
 ## Next Steps
 
