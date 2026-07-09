@@ -129,6 +129,16 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
+Use `SkillIDs` to temporarily mount extra Skills for a registered Agent run when it needs one-off capabilities without changing its saved configuration. Agent Gateway accepts at most 20 active, visible Skill UUIDs, merges them after the Agent's own Skills, dedupes repeated IDs, rejects `SkillIDs` when `AgentConfig` is used, and only lets Skill runtime config fill Agent defaults that are unset.
+
+```go
+result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
+	AgentID:  "33333333-3333-4333-8333-333333333333",
+	SkillIDs: []string{"11111111-1111-1111-1111-111111111111"},
+	Message:  "Use the extra skill for this run.",
+})
+```
+
 Use `Messages` for multi-turn conversations:
 
 ```go

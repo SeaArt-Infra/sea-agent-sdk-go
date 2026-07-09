@@ -115,6 +115,7 @@ type ChatCompletionRequest struct {
 	AgentID     string            `json:"agent_id,omitempty"`
 	Category    string            `json:"category,omitempty"`
 	AgentConfig map[string]any    `json:"agent_config,omitempty"`
+	SkillIDs    []string          `json:"skill_ids,omitempty"`
 	Messages    []ChatMessage     `json:"messages"`
 	Metadata    map[string]any    `json:"metadata,omitempty"`
 	Stream      bool              `json:"stream,omitempty"`
@@ -127,6 +128,7 @@ type ChatRunOptions struct {
 	AgentID     string
 	Category    string
 	AgentConfig map[string]any
+	SkillIDs    []string
 	Message     string
 	Messages    []ChatMessage
 	Metadata    map[string]any
