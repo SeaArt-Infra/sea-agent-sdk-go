@@ -22,6 +22,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 2. The SDK normalizes the endpoint to include `/agent-v2` when needed.
 3. Each resource helper sends gateway-compatible HTTP requests with global and per-request headers.
 4. Chat helpers can either return a full response or process SSE/WebSocket events through callbacks.
+5. Streaming helpers automatically resume transient disconnects from the last delivered event sequence.
 
 `X-User-ID` is required for `tools`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata.
 
@@ -203,11 +204,14 @@ text, err := client.Chat.RunStream(
 	seaagentsdk.ChatStreamHandlers{
 		Transport: seaagentsdk.StreamTransportSSE,
 		OnTextDelta: func(delta string, event seaagentsdk.ChatStreamEvent) {
-			fmt.Print(delta)
+			fmt.Printf("[%d] %s", event.Seq, delta)
 		},
 		OnEvent: func(event seaagentsdk.ChatStreamEvent) {
 			// Record metrics or inspect tool-call events here.
 			_ = event
+		},
+		OnReconnect: func(info seaagentsdk.ChatStreamReconnectInfo) {
+			log.Printf("resuming run=%s after_seq=%d (attempt %d)", info.RunID, info.AfterSeq, info.Attempt)
 		},
 	},
 )
@@ -243,19 +247,21 @@ text, err := client.Chat.RunStream(
 
 ### Worker Stream Event Format
 
-`agent-gateway` forwards worker stream events as SSE blocks or WebSocket messages. The SDK normalizes both transports into `ChatStreamEvent{Event, Data}`. Use `OnTextDelta` for assistant text and `OnEvent` for all raw lifecycle, tool, skill, and terminal events.
+`agent-gateway` forwards worker stream events as SSE blocks or WebSocket messages. The SDK normalizes both transports into `ChatStreamEvent{ID, Seq, Event, Data}`. `ID` preserves the protocol event ID and `Seq` contains its numeric sequence, or zero for heartbeat and unnumbered events. Use `OnTextDelta` for assistant text and `OnEvent` for all raw lifecycle, tool, skill, and terminal events.
 
 SSE frames use the standard event/data envelope:
 
 ```text
 event: response.text.delta
 data: {"type":"response.text.delta","response_id":"run_xxx","item_id":"item_run_xxx_msg","output_index":0,"content_index":0,"delta":"hello"}
+id: 12
 ```
 
 WebSocket frames carry the same payload under `data`:
 
 ```json
 {
+  "id": "12",
   "event": "response.text.delta",
   "data": {
     "type": "response.text.delta",
@@ -276,6 +282,7 @@ Common worker event sequence:
 | `response.in_progress` | Run enters processing | `type`, `response.id`, `response.status` |
 | `response.output_item.added` | Assistant message item or tool call item starts | `response_id`, `output_index`, `item.type`, `item.id`, `item.status`; tool calls also include `item.call_id`, `item.name` |
 | `response.content_part.added` | Assistant text content part starts | `response_id`, `item_id`, `output_index`, `content_index`, `part.type` |
+| `chat.delta` | Legacy assistant text chunk | `content`, `text`, or `delta` |
 | `response.text.delta` | Assistant text token/chunk | `response_id`, `item_id`, `output_index`, `content_index`, `delta` |
 | `response.function_call_arguments.done` | Tool call arguments are finalized | `response_id`, `item_id`, `call_id`, `name`, `arguments` as a JSON string |
 | `fabric.tool.started` | Worker starts a tool call | `tool.id`, `tool.call_id`, `tool.name`, `tool.status`, `tool.arguments` |
@@ -289,11 +296,43 @@ Common worker event sequence:
 | `response.failed` | Run failed | `response.status`, `response.error.type`, `response.error.code`, `response.error.message` |
 | `response.cancelled` | Run was cancelled | `response.status`, `response.cancel_reason` |
 
-The SDK accumulates returned text from `response.text.delta`. It also keeps compatibility with legacy `response.output_text.delta`, `chat.response`, and `message.delta` text events. Tool, skill, usage, metadata, and terminal details are not passed to `OnTextDelta`; inspect them in `OnEvent`.
+The SDK accumulates returned text from `response.text.delta`. It also keeps compatibility with `chat.delta`, legacy `response.output_text.delta`, `chat.response`, and `message.delta` text events. Tool, skill, usage, metadata, and terminal details are not passed to `OnTextDelta`; inspect them in `OnEvent`.
+
+The recognized terminal events are `response.completed`, `response.failed`, `response.cancelled`, `response.canceled`, `chat.response`, `chat.completed`, `chat.failed`, and `chat.cancelled`. The SDK stops reading as soon as one is delivered; events after a terminal event are ignored.
+
+### Automatic Stream Resume
+
+`RunStream`, `StreamCompletion`, and `Stream` automatically resume an interrupted stream until a terminal event is received. The SDK records `run_id` from `chat.created` and the last delivered `Seq`, then reconnects through the chat replay endpoint with `after_seq`. Duplicate replayed sequence numbers are not delivered to callbacks. If a create stream disconnects before `chat.created`, the SDK retries creation with the same `request_id`; when the caller did not provide one, the SDK generates it for that call. Request-specific headers are also forwarded to replay requests.
+
+By default, the SDK makes up to three reconnect attempts with exponential delays from 250 milliseconds to 5 seconds. Customize the policy through `ChatStreamHandlers`:
+
+```go
+handlers := seaagentsdk.ChatStreamHandlers{
+	MaxReconnects:     5,
+	ReconnectDelay:    500 * time.Millisecond,
+	MaxReconnectDelay: 10 * time.Second,
+	OnReconnect: func(info seaagentsdk.ChatStreamReconnectInfo) {
+		log.Printf("attempt=%d run=%s after_seq=%d delay=%s err=%v",
+			info.Attempt, info.RunID, info.AfterSeq, info.Delay, info.Err)
+	},
+}
+```
+
+| Handler field | Default | Behavior |
+| --- | --- | --- |
+| `DisableAutoResume` | `false` | Set to `true` when the caller owns reconnection |
+| `MaxReconnects` | `3` | Reconnect attempts after the initial connection; zero selects the default |
+| `ReconnectDelay` | `250ms` | Initial reconnect delay |
+| `MaxReconnectDelay` | `5s` | Maximum exponential-backoff delay |
+| `OnReconnect` | `nil` | Receives `ChatStreamReconnectInfo{Attempt, RunID, AfterSeq, Delay, Err}` |
+
+Context cancellation, explicit WebSocket error events, and non-transient HTTP errors stop immediately; HTTP 408, 429, 5xx, premature EOF, and network errors are eligible for reconnection. Incomplete SSE frames from a broken connection are discarded before replay. The default stream client has no total response timeout, so use the Go context to set the desired stream deadline. A custom `ClientOptions.HTTPClient` and its timeout are preserved for both normal and streaming requests.
+
+Automatic resume covers connection loss while the current process is running. Persist `RunID` and `event.Seq`, then call `Stream` with `AfterSeq`, when recovery must survive a process restart.
 
 ## Replay an Existing Chat
 
-If another SDK client or application created the chat, subscribe by chat ID. `AfterSeq` resumes from events after the specified sequence number.
+If another SDK client or application created the chat, subscribe by chat ID. `AfterSeq` starts from events after the specified sequence number. If that connection is interrupted, the SDK continues automatically from the last delivered event.
 
 ```go
 chatID := "chat_xxxxxxxxxxxxx"
@@ -485,5 +524,5 @@ Hooks use `ClientOptions.APIKey` as `Authorization: Bearer ...`; do not send `ap
 
 - Start with `Chat.Run` for non-streaming requests.
 - Use `Chat.RunStream` with SSE for most streaming integrations.
-- Use `Chat.Stream` with `AfterSeq` to resume an existing chat.
+- Use `Chat.Stream` with `AfterSeq` to subscribe to an existing chat or resume after a process restart; active-process disconnects are handled automatically.
 - Register tools, skills, and agents with UUID-based references only.

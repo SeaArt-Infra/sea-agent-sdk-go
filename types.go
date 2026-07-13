@@ -1,6 +1,9 @@
 package seaagentsdk
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type QueryParams map[string]any
 
@@ -144,12 +147,27 @@ const (
 )
 
 type ChatStreamEvent struct {
+	ID    string
+	Seq   int64
 	Event string
 	Data  any
 }
 
+type ChatStreamReconnectInfo struct {
+	Attempt  int
+	RunID    string
+	AfterSeq int64
+	Delay    time.Duration
+	Err      error
+}
+
 type ChatStreamHandlers struct {
-	Transport   StreamTransport
-	OnEvent     func(ChatStreamEvent)
-	OnTextDelta func(string, ChatStreamEvent)
+	Transport         StreamTransport
+	OnEvent           func(ChatStreamEvent)
+	OnTextDelta       func(string, ChatStreamEvent)
+	DisableAutoResume bool
+	MaxReconnects     int
+	ReconnectDelay    time.Duration
+	MaxReconnectDelay time.Duration
+	OnReconnect       func(ChatStreamReconnectInfo)
 }

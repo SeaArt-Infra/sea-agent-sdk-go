@@ -1,6 +1,26 @@
 package seaagentsdk
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+	"time"
+)
+
+func TestDefaultStreamClientHasNoTotalTimeout(t *testing.T) {
+	transport := NewTransport("http://127.0.0.1:8080", "", nil, nil)
+	if transport.httpClient.Timeout != 60*time.Second {
+		t.Fatalf("HTTP timeout = %s, want 60s", transport.httpClient.Timeout)
+	}
+	if transport.streamHTTPClient.Timeout != 0 {
+		t.Fatalf("stream timeout = %s, want no total timeout", transport.streamHTTPClient.Timeout)
+	}
+
+	custom := &http.Client{Timeout: 2 * time.Minute}
+	transport = NewTransport("http://127.0.0.1:8080", "", nil, custom)
+	if transport.streamHTTPClient != custom {
+		t.Fatal("custom HTTP client was not preserved for streams")
+	}
+}
 
 func TestNormalizeAgentGatewayEndpoint(t *testing.T) {
 	tests := []struct {

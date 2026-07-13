@@ -3,6 +3,7 @@ package seaagentsdk
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -10,6 +11,9 @@ type ChatStreamProcessor struct {
 	handlers ChatStreamHandlers
 	buffer   strings.Builder
 	text     strings.Builder
+	LastSeq  int64
+	RunID    string
+	Terminal bool
 }
 
 func NewChatStreamProcessor(handlers ChatStreamHandlers) *ChatStreamProcessor {
@@ -49,6 +53,14 @@ func (p *ChatStreamProcessor) WriteWebSocketMessage(message string) error {
 	return nil
 }
 
+func (p *ChatStreamProcessor) DiscardSSEBuffer() {
+	p.buffer.Reset()
+}
+
+func (p *ChatStreamProcessor) Text() string {
+	return p.text.String()
+}
+
 func (p *ChatStreamProcessor) End() string {
 	if p.buffer.Len() > 0 {
 		for _, event := range ParseSSE(p.buffer.String()) {
@@ -60,23 +72,33 @@ func (p *ChatStreamProcessor) End() string {
 }
 
 func (p *ChatStreamProcessor) handleEvent(event ChatStreamEvent) {
+	if p.Terminal {
+		return
+	}
+	if event.Seq > 0 && event.Seq <= p.LastSeq {
+		return
+	}
+	if event.Event == "chat.created" {
+		p.RunID = stringField(event.Data, "run_id")
+	}
 	if p.handlers.OnEvent != nil {
 		p.handlers.OnEvent(event)
 	}
 	delta := TextFromStreamEvent(event)
-	if delta == "" {
-		return
+	if delta != "" {
+		p.text.WriteString(delta)
+		if p.handlers.OnTextDelta != nil {
+			p.handlers.OnTextDelta(delta, event)
+		}
 	}
-	p.text.WriteString(delta)
-	if p.handlers.OnTextDelta != nil {
-		p.handlers.OnTextDelta(delta, event)
+	if event.Seq > 0 {
+		p.LastSeq = event.Seq
 	}
+	p.Terminal = p.Terminal || isTerminalStreamEvent(event.Event)
 }
 
 func ParseSSE(text string) []ChatStreamEvent {
-	blocks := strings.FieldsFunc(text, func(r rune) bool { return false })
-	_ = blocks
-
+	text = strings.ReplaceAll(text, "\r\n", "\n")
 	var events []ChatStreamEvent
 	for _, block := range strings.Split(text, "\n\n") {
 		block = strings.TrimSpace(block)
@@ -86,6 +108,7 @@ func ParseSSE(text string) []ChatStreamEvent {
 
 		lines := strings.Split(block, "\n")
 		eventName := "message"
+		var eventID string
 		var dataLines []string
 
 		for _, line := range lines {
@@ -93,6 +116,8 @@ func ParseSSE(text string) []ChatStreamEvent {
 			switch {
 			case strings.HasPrefix(line, "event:"):
 				eventName = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			case strings.HasPrefix(line, "id:"):
+				eventID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
 			case strings.HasPrefix(line, "data:"):
 				dataLines = append(dataLines, strings.TrimLeft(strings.TrimPrefix(line, "data:"), " "))
 			}
@@ -109,6 +134,8 @@ func ParseSSE(text string) []ChatStreamEvent {
 		}
 
 		events = append(events, ChatStreamEvent{
+			ID:    eventID,
+			Seq:   streamSequence(eventID),
 			Event: eventName,
 			Data:  data,
 		})
@@ -119,7 +146,9 @@ func ParseSSE(text string) []ChatStreamEvent {
 
 func ParseWebSocketEvent(message string) (ChatStreamEvent, error) {
 	var parsed any
-	if err := json.Unmarshal([]byte(message), &parsed); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(message))
+	decoder.UseNumber()
+	if err := decoder.Decode(&parsed); err != nil {
 		return ChatStreamEvent{Event: "message", Data: message}, nil
 	}
 
@@ -144,8 +173,11 @@ func ParseWebSocketEvent(message string) (ChatStreamEvent, error) {
 		}
 		return ChatStreamEvent{}, fmt.Errorf("%s", errorText)
 	}
+	eventID := valueString(object["id"])
 
 	return ChatStreamEvent{
+		ID:    eventID,
+		Seq:   streamSequence(eventID),
 		Event: eventName,
 		Data:  object["data"],
 	}, nil
@@ -155,7 +187,7 @@ func TextFromStreamEvent(event ChatStreamEvent) string {
 	if event.Event == "response.text.delta" || event.Event == "response.output_text.delta" {
 		return stringField(event.Data, "delta")
 	}
-	if event.Event == "chat.response" || event.Event == "message.delta" {
+	if event.Event == "chat.response" || event.Event == "chat.delta" || event.Event == "message.delta" {
 		if value := stringField(event.Data, "content"); value != "" {
 			return value
 		}
@@ -165,6 +197,36 @@ func TextFromStreamEvent(event ChatStreamEvent) string {
 		return stringField(event.Data, "delta")
 	}
 	return ""
+}
+
+func streamSequence(id string) int64 {
+	seq, err := strconv.ParseInt(id, 10, 64)
+	if err != nil || seq < 1 {
+		return 0
+	}
+	return seq
+}
+
+func valueString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case json.Number:
+		return typed.String()
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	default:
+		return ""
+	}
+}
+
+func isTerminalStreamEvent(event string) bool {
+	switch event {
+	case "response.completed", "response.failed", "response.cancelled", "response.canceled", "chat.response", "chat.completed", "chat.failed", "chat.cancelled":
+		return true
+	default:
+		return false
+	}
 }
 
 func stringField(data any, field string) string {

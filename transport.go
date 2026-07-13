@@ -17,21 +17,34 @@ import (
 )
 
 type Transport struct {
-	endpoint   string
-	apiKey     string
-	headers    map[string]string
-	httpClient *http.Client
+	endpoint         string
+	apiKey           string
+	headers          map[string]string
+	httpClient       *http.Client
+	streamHTTPClient *http.Client
+}
+
+type HTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("%d: %s", e.StatusCode, e.Message)
 }
 
 func NewTransport(endpoint, apiKey string, headers map[string]string, httpClient *http.Client) *Transport {
+	streamHTTPClient := httpClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 60 * time.Second}
+		streamHTTPClient = &http.Client{}
 	}
 	return &Transport{
-		endpoint:   normalizeAgentGatewayEndpoint(endpoint),
-		apiKey:     apiKey,
-		headers:    cloneStringMap(headers),
-		httpClient: httpClient,
+		endpoint:         normalizeAgentGatewayEndpoint(endpoint),
+		apiKey:           apiKey,
+		headers:          cloneStringMap(headers),
+		httpClient:       httpClient,
+		streamHTTPClient: streamHTTPClient,
 	}
 }
 
@@ -80,6 +93,13 @@ func (t *Transport) WebSocket(ctx context.Context, path string, query QueryParam
 }
 
 func (t *Transport) WebSocketWithHeaders(ctx context.Context, path string, query QueryParams, initialMessage any, headers map[string]string, onMessage func(string)) error {
+	return t.webSocketWithHeaders(ctx, path, query, initialMessage, headers, func(message string) error {
+		onMessage(message)
+		return nil
+	})
+}
+
+func (t *Transport) webSocketWithHeaders(ctx context.Context, path string, query QueryParams, initialMessage any, headers map[string]string, onMessage func(string) error) error {
 	wsURL, err := t.buildWebSocketURL(path, query)
 	if err != nil {
 		return err
@@ -91,11 +111,25 @@ func (t *Transport) WebSocketWithHeaders(ctx context.Context, path string, query
 		fmt.Fprintln(os.Stderr, "WS", wsURL)
 	}
 
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, requestHeaders)
+	conn, response, err := websocket.DefaultDialer.DialContext(ctx, wsURL, requestHeaders)
 	if err != nil {
+		if response != nil {
+			defer func() { _ = response.Body.Close() }()
+			raw, _ := io.ReadAll(response.Body)
+			return &HTTPError{StatusCode: response.StatusCode, Message: errorMessageFromResponse(string(raw))}
+		}
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
+	stopClose := make(chan struct{})
+	defer close(stopClose)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-stopClose:
+		}
+	}()
 
 	if initialMessage != nil {
 		if err := conn.WriteJSON(initialMessage); err != nil {
@@ -121,7 +155,9 @@ func (t *Transport) WebSocketWithHeaders(ctx context.Context, path string, query
 			continue
 		}
 
-		onMessage(string(data))
+		if err := onMessage(string(data)); err != nil {
+			return err
+		}
 	}
 }
 
@@ -161,7 +197,7 @@ func (t *Transport) requestTextWithHeaders(ctx context.Context, method, path str
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -170,7 +206,7 @@ func (t *Transport) requestTextWithHeaders(ctx context.Context, method, path str
 
 	text := string(raw)
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("%d: %s", resp.StatusCode, errorMessageFromResponse(text))
+		return "", &HTTPError{StatusCode: resp.StatusCode, Message: errorMessageFromResponse(text)}
 	}
 	return text, nil
 }
@@ -180,27 +216,36 @@ func (t *Transport) requestStream(ctx context.Context, method, path string, quer
 }
 
 func (t *Transport) requestStreamWithHeaders(ctx context.Context, method, path string, query QueryParams, body any, headers map[string]string, onChunk func(string)) error {
+	return t.requestStreamWithHeadersCallback(ctx, method, path, query, body, headers, func(chunk string) error {
+		onChunk(chunk)
+		return nil
+	})
+}
+
+func (t *Transport) requestStreamWithHeadersCallback(ctx context.Context, method, path string, query QueryParams, body any, headers map[string]string, onChunk func(string) error) error {
 	req, err := t.buildRequestWithHeaders(ctx, method, path, query, body, "text/event-stream", headers)
 	if err != nil {
 		return err
 	}
 
-	resp, err := t.httpClient.Do(req)
+	resp, err := t.streamHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("%d: %s", resp.StatusCode, errorMessageFromResponse(string(raw)))
+		return &HTTPError{StatusCode: resp.StatusCode, Message: errorMessageFromResponse(string(raw))}
 	}
 
 	buf := make([]byte, 4096)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			onChunk(string(buf[:n]))
+			if callbackErr := onChunk(string(buf[:n])); callbackErr != nil {
+				return callbackErr
+			}
 		}
 		if err != nil {
 			if err == io.EOF {
@@ -209,10 +254,6 @@ func (t *Transport) requestStreamWithHeaders(ctx context.Context, method, path s
 			return err
 		}
 	}
-}
-
-func (t *Transport) buildRequest(ctx context.Context, method, path string, query QueryParams, body any, accept string) (*http.Request, error) {
-	return t.buildRequestWithHeaders(ctx, method, path, query, body, accept, nil)
 }
 
 func (t *Transport) buildRequestWithHeaders(ctx context.Context, method, path string, query QueryParams, body any, accept string, headers map[string]string) (*http.Request, error) {
