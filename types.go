@@ -74,10 +74,10 @@ type AgentListOptions struct {
 	Offset         int
 }
 
-type HookListOptions struct {
-	Search string
-	Limit  int
-	Offset int
+type HookRequest struct {
+	Name        string `json:"name"`
+	Endpoint    string `json:"endpoint"`
+	Description string `json:"description"`
 }
 
 type ChatEventsOptions struct {

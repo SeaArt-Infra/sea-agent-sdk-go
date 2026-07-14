@@ -13,7 +13,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 | Tools | `client.Tools` | Register, list, update, delete, and resolve tools |
 | Skills | `client.Skills` | Register, list, update, and delete skills |
 | Agents | `client.Agents` | Register, list, update, delete, and inspect agents |
-| Hooks | `client.Hooks` | Register and manage worker event hook endpoints |
+| Hooks | `client.Hooks` | Manage the multimodal charge reservation hook |
 | Chat | `client.Chat` | Run chat, stream chat, replay events, and cancel chats |
 
 ## How It Works
@@ -495,18 +495,43 @@ Search, compare sources, and summarize findings.
 
 ## Hook Endpoints
 
-Register a hook endpoint for worker events:
+Register the single hook endpoint owned by the configured API key:
 
 ```go
-hook, err := client.Hooks.Register(ctx, map[string]any{
-	"name":        "production-line-hook",
-	"endpoint":    "https://example.com/agent-hook",
-	"description": "Receives Agent Worker events for the configured API key.",
-	"metadata":    map[string]any{},
-})
+request := seaagentsdk.HookRequest{
+	Name:        "production-line-hook",
+	Endpoint:    "https://example.com/agent-hook",
+	Description: "Receives multimodal charge reservation events for the configured API key.",
+}
+hook, err := client.Hooks.Register(ctx, request)
+updated, err := client.Hooks.Update(ctx, request)
+deleted, err := client.Hooks.Delete(ctx)
 ```
 
-Hooks use `ClientOptions.APIKey` as `Authorization: Bearer ...`; do not send `api_key` in the payload. Worker calls use `POST`, and the receiver should filter by `event_id` in the event payload when needed.
+Hook management requests use `ClientOptions.APIKey` as `Authorization: Bearer ...`; registration and update request fields are `name`, `endpoint`, and `description`. One API key owns at most one active Hook. Registration creates a Hook and returns `409 Conflict` when one is already active; after deletion, the same API key can register again.
+
+### Callback event: `multimodal.charge.reserve`
+
+The Worker sends this event with fixed `POST` immediately before submitting a multimodal model operation. Callback `metadata` is copied from the individual chat request:
+
+```json
+{
+  "event_id": "evt_...",
+  "event": "multimodal.charge.reserve",
+  "run_id": "run_...",
+  "metadata": {},
+  "data": {
+    "operation_id": "op_...",
+    "tool_name": "generate",
+    "model": "model-name",
+    "modality": "multimodal",
+    "cost": "0.035",
+    "currency": "USD"
+  }
+}
+```
+
+For this event, the endpoint must synchronously return an HTTP success status and a top-level JSON object. Approval returns `{"approved":true}`. Rejection returns `{"approved":false}` and can include `code` and `message`, for example `{"approved":false,"code":"insufficient_balance","message":"Balance is insufficient"}`.
 
 ## API Reference
 
@@ -517,7 +542,7 @@ Hooks use `ClientOptions.APIKey` as `Authorization: Bearer ...`; do not send `ap
 | Tools | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, toolID)`, `Update(ctx, toolID, payload)`, `Delete(ctx, toolID)`, `Resolve(ctx, toolID)` |
 | Skills | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, skillID)`, `Update(ctx, skillID, payload)`, `Delete(ctx, skillID)` |
 | Agents | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, agentID)`, `Update(ctx, agentID, payload)`, `Delete(ctx, agentID)`, `Capabilities(ctx, agentID)` |
-| Hooks | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, hookID)`, `Update(ctx, hookID, payload)`, `Delete(ctx, hookID)` |
+| Hooks | `Register(ctx, payload)`, `Update(ctx, payload)`, `Delete(ctx)` |
 | Chat | `CreateCompletion(ctx, payload)`, `StreamCompletion(ctx, payload, handlers)`, `Run(ctx, options)`, `RunStream(ctx, options, handlers)`, `Get(ctx, chatID)`, `Events(ctx, chatID, options)`, `Stream(ctx, chatID, handlers, options)`, `Cancel(ctx, chatID)` |
 
 ## Next Steps
