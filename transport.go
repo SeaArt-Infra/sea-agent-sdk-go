@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const defaultHTTPTimeout = 180 * time.Second
+
 type Transport struct {
 	endpoint         string
 	apiKey           string
@@ -36,7 +38,7 @@ func (e *HTTPError) Error() string {
 func NewTransport(endpoint, apiKey string, headers map[string]string, httpClient *http.Client) *Transport {
 	streamHTTPClient := httpClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 60 * time.Second}
+		httpClient = &http.Client{Timeout: defaultHTTPTimeout}
 		streamHTTPClient = &http.Client{}
 	}
 	return &Transport{

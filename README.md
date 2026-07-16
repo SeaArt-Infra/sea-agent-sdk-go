@@ -98,7 +98,7 @@ client := seaagentsdk.NewClient(seaagentsdk.ClientOptions{
 })
 ```
 
-`endpoint` may be the gateway base URL or a URL that already includes `/agent-v2`. The SDK appends `/agent-v2` before sending requests when it is missing.
+`endpoint` may be the gateway base URL or a URL that already includes `/agent-v2`. The SDK appends `/agent-v2` before sending requests when it is missing. Non-streaming requests use a default timeout of 180 seconds. Pass a custom `ClientOptions.HTTPClient` to override it.
 
 ## Listing Resources
 
