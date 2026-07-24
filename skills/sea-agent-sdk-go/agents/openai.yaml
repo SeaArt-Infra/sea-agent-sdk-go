@@ -1,0 +1,4 @@
+interface:
+  display_name: "SeaAgent Go SDK"
+  short_description: "Integrate Go services with Agent Gateway APIs."
+  default_prompt: "Use $sea-agent-sdk-go to integrate a Go service with Agent Gateway."
