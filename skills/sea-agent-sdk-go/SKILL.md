@@ -80,6 +80,15 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 
 Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 
+## Agent Skill Preload
+
+Agent registration keeps `skills` as an array of Skill UUIDs. Add the UUID of
+a short instruction needed on every run to `pre_skills` as well: gateway
+injects it into the resolved system prompt and avoids the initial Worker
+`read_file` call for its `SKILL.md`. Skills only in `skills` remain
+progressively loaded by Worker. `pre_skills` must be a duplicate-free subset
+of `skills`; every bound Skill keeps its tool bindings.
+
 ## Verify And Protect Data
 
 Run `go test ./...` from the module root. Verify a health check or a non-streaming chat before adding streaming UI behavior. Do not expose gateway API keys in browser code, commits, logs, errors, or telemetry. Redact complete prompts and raw Tool output from diagnostic logs.
