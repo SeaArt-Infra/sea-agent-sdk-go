@@ -464,7 +464,13 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"name":          "web_assistant",
 	"category":      "fabric",
 	"system_prompt": "You are a web research assistant.",
-	"skills":        []string{"11111111-1111-4111-8111-111111111111"},
+	"skills": []string{
+		"11111111-1111-4111-8111-111111111111",
+		"33333333-3333-4333-8333-333333333333",
+	},
+	"pre_skills": []string{
+		"11111111-1111-4111-8111-111111111111",
+	},
 	"config": map[string]any{
 		"temperature": 0.2,
 		"max_turns":   6,
@@ -472,6 +478,15 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"enabled": true,
 })
 ```
+
+### Agent Skill preload
+
+`skills` remains the complete Agent Skill UUID array. For a short instruction
+needed on every run, also add that UUID to `pre_skills`. Gateway resolves each
+preloaded Skill into the Agent system prompt and avoids the initial Worker
+`read_file` call for its `SKILL.md`; Skills omitted from `pre_skills` remain
+progressively loaded by Worker. `pre_skills` must be a duplicate-free subset
+of `skills`. Required and optional tools resolve for every bound Skill.
 
 ## Skill Runtime Rules
 
@@ -482,7 +497,7 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 | `instruction` | Required; full Markdown body for the skill |
 | `required_tools` / `optional_tools` | Use UUID refs for registered HTTP, HTTP Batch, and registered builtin tools |
 
-When an agent runs with a registered skill, the gateway assembles an inline skill document:
+Worker-delivered Skills use an inline skill document:
 
 ```md
 ---
