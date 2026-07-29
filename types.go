@@ -114,31 +114,29 @@ type ChatMessage struct {
 }
 
 type ChatCompletionRequest struct {
-	RequestID       string            `json:"request_id,omitempty"`
-	AgentID         string            `json:"agent_id,omitempty"`
-	Category        string            `json:"category,omitempty"`
-	ReasoningEffort *string           `json:"reasoning_effort,omitempty"`
-	AgentConfig     map[string]any    `json:"agent_config,omitempty"`
-	SkillIDs        []string          `json:"skill_ids,omitempty"`
-	Messages        []ChatMessage     `json:"messages"`
-	Metadata        map[string]any    `json:"metadata,omitempty"`
-	Stream          bool              `json:"stream,omitempty"`
-	Headers         map[string]string `json:"-"`
-	ExtraBody       map[string]any    `json:"-"`
+	RequestID   string            `json:"request_id,omitempty"`
+	AgentID     string            `json:"agent_id,omitempty"`
+	Category    string            `json:"category,omitempty"`
+	AgentConfig map[string]any    `json:"agent_config,omitempty"`
+	SkillIDs    []string          `json:"skill_ids,omitempty"`
+	Messages    []ChatMessage     `json:"messages"`
+	Metadata    map[string]any    `json:"metadata,omitempty"`
+	Stream      bool              `json:"stream,omitempty"`
+	Headers     map[string]string `json:"-"`
+	ExtraBody   map[string]any    `json:"-"`
 }
 
 type ChatRunOptions struct {
-	RequestID       string
-	AgentID         string
-	Category        string
-	ReasoningEffort *string
-	AgentConfig     map[string]any
-	SkillIDs        []string
-	Message         string
-	Messages        []ChatMessage
-	Metadata        map[string]any
-	Headers         map[string]string
-	ExtraBody       map[string]any
+	RequestID   string
+	AgentID     string
+	Category    string
+	AgentConfig map[string]any
+	SkillIDs    []string
+	Message     string
+	Messages    []ChatMessage
+	Metadata    map[string]any
+	Headers     map[string]string
+	ExtraBody   map[string]any
 }
 
 type StreamTransport string

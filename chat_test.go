@@ -64,29 +64,3 @@ func TestChatCompletionBodyIncludesSkillIDs(t *testing.T) {
 		t.Fatalf("skill_ids = %#v", values)
 	}
 }
-
-func TestChatCompletionBodyIncludesReasoningEffort(t *testing.T) {
-	effort := "high"
-	body := chatCompletionBody(ChatCompletionRequest{
-		AgentID:         "agent_1",
-		ReasoningEffort: &effort,
-		Messages:        []ChatMessage{{Role: "user", Content: "hello"}},
-	})
-
-	if got, ok := body["reasoning_effort"].(string); !ok || got != "high" {
-		t.Fatalf("reasoning_effort = %#v, want high", body["reasoning_effort"])
-	}
-}
-
-func TestBuildRunPayloadPreservesReasoningEffort(t *testing.T) {
-	effort := "medium"
-	payload := buildRunPayload(ChatRunOptions{
-		AgentID:         "agent_1",
-		Message:         "hello",
-		ReasoningEffort: &effort,
-	}, true)
-
-	if payload.ReasoningEffort == nil || *payload.ReasoningEffort != "medium" {
-		t.Fatalf("ReasoningEffort = %#v, want medium", payload.ReasoningEffort)
-	}
-}

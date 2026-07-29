@@ -172,13 +172,11 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 Attach request metadata and per-request headers when gateway or worker tracing needs them:
 
 ```go
-reasoningEffort := "high"
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
-	RequestID:       "req_123",
-	AgentID:         "33333333-3333-4333-8333-333333333333",
-	Category:        "fabric",
-	ReasoningEffort: &reasoningEffort,
-	Message:         "Summarize this request context.",
+	RequestID: "req_123",
+	AgentID:   "33333333-3333-4333-8333-333333333333",
+	Category:  "fabric",
+	Message:   "Summarize this request context.",
 	Metadata: map[string]any{
 		"session_id": "sess_123",
 		"user_id":    "user_456",
@@ -190,7 +188,7 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
-`request_id`, `category`, `reasoning_effort`, and `metadata` are sent in the chat body. Set `ReasoningEffort` to override the Agent default for this run only; a nil pointer leaves the value unspecified. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
+`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
 
 ## Streaming
 
@@ -473,9 +471,6 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"pre_skills": []string{
 		"11111111-1111-4111-8111-111111111111",
 	},
-	"model_config": map[string]any{
-		"reasoning_effort": "medium",
-	},
 	"config": map[string]any{
 		"temperature": 0.2,
 		"max_turns":   6,
@@ -483,8 +478,6 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"enabled": true,
 })
 ```
-
-Set `model_config.reasoning_effort` to establish the Agent default. A chat request can override it with `ReasoningEffort` without changing the saved Agent.
 
 ### Agent Skill preload
 
@@ -662,7 +655,7 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 | Multimodal charge reservation hook | `Hooks` |
 | Chat, streaming, replay, cancellation | `Chat` |
 
-Pass list filters through the corresponding option struct. `ReasoningEffort` is a first-class chat option; keep other custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
+Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 
 ## Verify And Protect Data
 

@@ -281,17 +281,16 @@ func buildRunPayload(options ChatRunOptions, stream bool) ChatCompletionRequest 
 	}
 
 	return ChatCompletionRequest{
-		RequestID:       options.RequestID,
-		AgentID:         options.AgentID,
-		Category:        options.Category,
-		ReasoningEffort: options.ReasoningEffort,
-		AgentConfig:     options.AgentConfig,
-		SkillIDs:        options.SkillIDs,
-		Messages:        messages,
-		Metadata:        options.Metadata,
-		Stream:          stream,
-		Headers:         options.Headers,
-		ExtraBody:       options.ExtraBody,
+		RequestID:   options.RequestID,
+		AgentID:     options.AgentID,
+		Category:    options.Category,
+		AgentConfig: options.AgentConfig,
+		SkillIDs:    options.SkillIDs,
+		Messages:    messages,
+		Metadata:    options.Metadata,
+		Stream:      stream,
+		Headers:     options.Headers,
+		ExtraBody:   options.ExtraBody,
 	}
 }
 
@@ -308,9 +307,6 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	}
 	if payload.Category != "" {
 		body["category"] = payload.Category
-	}
-	if payload.ReasoningEffort != nil {
-		body["reasoning_effort"] = *payload.ReasoningEffort
 	}
 	if payload.AgentConfig != nil {
 		body["agent_config"] = payload.AgentConfig
