@@ -89,6 +89,32 @@ injects it into the resolved system prompt and avoids the initial Worker
 progressively loaded by Worker. `pre_skills` must be a duplicate-free subset
 of `skills`; every bound Skill keeps its tool bindings.
 
+## Medium-Term Memory Policy
+
+For a registered Agent, use optional `config.memory_policy` in a concise
+registration payload or `agent_config.memory_policy` in a low-level
+create/update payload. Omit it for the normal persistent-session behavior;
+use it to restrict a particular Agent:
+
+```go
+"config": map[string]any{
+	"memory_policy": map[string]any{
+		"medium_term": map[string]any{"recall": false, "learn": false},
+	},
+},
+```
+
+For a complete persistent session, `medium_term.recall` and
+`medium_term.learn` both default to `true`. `recall` retrieves relevant
+semantic memory as background context; `learn` queues a qualifying completed
+run for asynchronous extraction rather than saving it synchronously. Both
+default to `false` for ephemeral runs (no `metadata.session_id`) and are forced
+off by a missing memory scope, user opt-out, or Worker
+`MEMORY_MEDIUM_TERM_ENABLED=false`. Agent policy and request-level
+`memory_policy` only restrict; pass a request-level override through
+`ChatRunOptions.ExtraBody`. Long-term recall and writes remain disabled by
+default.
+
 ## Verify And Protect Data
 
 Run `go test ./...` from the module root. Verify a health check or a non-streaming chat before adding streaming UI behavior. Do not expose gateway API keys in browser code, commits, logs, errors, or telemetry. Redact complete prompts and raw Tool output from diagnostic logs.
