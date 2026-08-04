@@ -11,6 +11,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 | System | `client.System` | Health and metrics checks |
 | Catalog | `client.Catalog` | List resolved catalog entries |
 | Tools | `client.Tools` | Register, list, update, delete, and resolve tools |
+| MCPs | `client.Mcps` | Register MCP servers and proxy tools/list and tools/call |
 | Skills | `client.Skills` | Register, list, update, and delete skills |
 | Agents | `client.Agents` | Register, list, update, delete, and inspect agents |
 | Hooks | `client.Hooks` | Manage the multimodal charge reservation hook |
@@ -24,7 +25,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 4. Chat helpers can either return a full response or process SSE/WebSocket events through callbacks.
 5. Streaming helpers automatically resume transient disconnects from the last delivered event sequence.
 
-`X-User-ID` is required for `tools`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata.
+`X-User-ID` is required for `tools`, `mcps`, `skills`, and `agents` write operations when the gateway needs provider, owner, or operator metadata.
 
 ## Quick Start
 
@@ -118,6 +119,39 @@ fmt.Printf("%#v\n", tools)
 ```
 
 Pagination follows the gateway behavior: `Limit` defaults to 20 when omitted or `<= 0`, the gateway caps values above 200, and `Offset` starts at 0.
+
+## MCP Servers
+
+Use `client.Mcps` to register a streamable HTTP or legacy SSE MCP server. Gateway stores configured upstream headers without returning their values; responses expose only `header_keys`. MCP mutations require `X-User-ID` and `X-Flag: 1` headers.
+
+```go
+server, err := client.Mcps.Register(ctx, map[string]any{
+	"name":       "sea-search",
+	"server_url": "https://mcp.example.com/mcp",
+	"transport":  "streamable-http",
+	"headers": map[string]string{
+		"Authorization": "Bearer token",
+	},
+})
+if err != nil {
+	panic(err)
+}
+
+tools, err := client.Mcps.Tools(ctx, "mcp-server-id")
+if err != nil {
+	panic(err)
+}
+
+result, err := client.Mcps.Call(ctx, "mcp-server-id", map[string]any{
+	"name":      "search",
+	"arguments": map[string]any{"query": "hello"},
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Printf("server=%#v tools=%#v result=%#v\n", server, tools, result)
+```
 
 ## Chat Requests
 
@@ -590,6 +624,7 @@ For this event, the endpoint must synchronously return an HTTP success status an
 | System | `Health(ctx)`, `Metrics(ctx)` |
 | Catalog | `List(ctx, options)` |
 | Tools | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, toolID)`, `Update(ctx, toolID, payload)`, `Delete(ctx, toolID)`, `Resolve(ctx, toolID)` |
+| MCPs | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, mcpID)`, `Update(ctx, mcpID, payload)`, `Delete(ctx, mcpID)`, `Tools(ctx, mcpID)`, `Call(ctx, mcpID, payload)` |
 | Skills | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, skillID)`, `Update(ctx, skillID, payload)`, `Delete(ctx, skillID)` |
 | Agents | `Register(ctx, payload)`, `List(ctx, options)`, `Get(ctx, agentID)`, `Update(ctx, agentID, payload)`, `Delete(ctx, agentID)`, `Capabilities(ctx, agentID)` |
 | Hooks | `Register(ctx, payload)`, `Update(ctx, payload)`, `Delete(ctx)` |
@@ -612,7 +647,7 @@ For this event, the endpoint must synchronously return an HTTP success status an
 >
 ---
 name: sea-agent-sdk-go
-description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
+description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, MCP Server, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
 ---
 
 # SeaAgent Go SDK
@@ -627,7 +662,7 @@ Use `github.com/SeaArt-Infra/sea-agent-sdk-go` for Agent Gateway work in Go. Pre
 4. Use the resource on the client that matches the operation.
 5. Run a focused Go test or `go test ./...` after changing the integration.
 
-The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, Skill, and Agent writes when the gateway requires owner or operator metadata.
+The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, MCP Server, Skill, and Agent writes when the gateway requires owner or operator metadata.
 
 ## Create A Client
 
@@ -685,10 +720,15 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 | Health or metrics | `System` |
 | Resolved catalog entries | `Catalog` |
 | Tool registration and resolution | `Tools` |
+| MCP Server registration and tool proxying | `Mcps` |
 | Skill registration and listing | `Skills` |
 | Agent registration and inspection | `Agents` |
 | Multimodal charge reservation hook | `Hooks` |
 | Chat, streaming, replay, cancellation | `Chat` |
+
+## Manage MCP Servers
+
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`; access to a private server's `Tools` and `Call` operations requires its owner or `X-Admin-Access: 1`.
 
 Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 

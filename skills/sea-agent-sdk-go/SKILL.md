@@ -1,6 +1,6 @@
 ---
 name: sea-agent-sdk-go
-description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
+description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, MCP Server, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
 ---
 
 # SeaAgent Go SDK
@@ -15,7 +15,7 @@ Use `github.com/SeaArt-Infra/sea-agent-sdk-go` for Agent Gateway work in Go. Pre
 4. Use the resource on the client that matches the operation.
 5. Run a focused Go test or `go test ./...` after changing the integration.
 
-The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, Skill, and Agent writes when the gateway requires owner or operator metadata.
+The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, MCP Server, Skill, and Agent writes when the gateway requires owner or operator metadata.
 
 ## Create A Client
 
@@ -73,10 +73,15 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 | Health or metrics | `System` |
 | Resolved catalog entries | `Catalog` |
 | Tool registration and resolution | `Tools` |
+| MCP Server registration and tool proxying | `Mcps` |
 | Skill registration and listing | `Skills` |
 | Agent registration and inspection | `Agents` |
 | Multimodal charge reservation hook | `Hooks` |
 | Chat, streaming, replay, cancellation | `Chat` |
+
+## Manage MCP Servers
+
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`; access to a private server's `Tools` and `Call` operations requires its owner or `X-Admin-Access: 1`.
 
 Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 

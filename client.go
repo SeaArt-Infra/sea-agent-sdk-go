@@ -9,6 +9,7 @@ type Client struct {
 	System    *SystemResource
 	Catalog   *CatalogResource
 	Tools     *ToolsResource
+	Mcps      *McpsResource
 	Skills    *SkillsResource
 	Agents    *AgentsResource
 	Hooks     *HooksResource
@@ -28,6 +29,7 @@ func NewClient(options ClientOptions) *Client {
 	client.System = &SystemResource{transport: transport}
 	client.Catalog = &CatalogResource{transport: transport}
 	client.Tools = &ToolsResource{transport: transport}
+	client.Mcps = &McpsResource{transport: transport}
 	client.Skills = &SkillsResource{transport: transport}
 	client.Agents = &AgentsResource{transport: transport}
 	client.Hooks = &HooksResource{transport: transport}
