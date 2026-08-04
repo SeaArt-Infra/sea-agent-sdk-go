@@ -291,7 +291,7 @@ Common worker event sequence:
 | `fabric.skill.completed` | Skill file load completes | `skill.status`, `skill.output`, `skill.output_text`, `skill.path` |
 | `response.text.done` | Assistant final text is known | `response_id`, `item_id`, `content_index`, `text` |
 | `response.content_part.done` | Assistant text content part completes | `part.type`, `part.text` |
-| `response.output_item.done` | Assistant message or function call output item completes | `item.type`, `item.status`, `item.content` for messages; `item.call_id`, `item.arguments`, `item.output` for tool calls |
+| `response.output_item.done` | Assistant message or function call output item completes | `item.type`, `item.status`, `item.content` for messages; `item.call_id`, `item.arguments`, `item.output`, optional `item.tool_status` for tool calls (`tool_status` is the tool outcome, distinct from the item lifecycle status) |
 | `response.completed` | Run completed successfully | `response.id`, `response.status`, `response.usage`, `response.elapsed_ms`, `response.metadata`, `response.output` |
 | `response.failed` | Run failed | `response.status`, `response.error.type`, `response.error.code`, `response.error.message` |
 | `response.cancelled` | Run was cancelled | `response.status`, `response.cancel_reason` |
