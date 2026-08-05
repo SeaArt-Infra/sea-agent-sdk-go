@@ -64,3 +64,37 @@ func TestChatCompletionBodyIncludesSkillIDs(t *testing.T) {
 		t.Fatalf("skill_ids = %#v", values)
 	}
 }
+
+func TestChatCompletionBodyIncludesReasoningEffortOnlyWhenSpecified(t *testing.T) {
+	body := chatCompletionBody(ChatCompletionRequest{
+		AgentID:         "agent_1",
+		ReasoningEffort: ReasoningEffortOff,
+		Messages:        []ChatMessage{{Role: "user", Content: "hello"}},
+	})
+
+	if got := body["reasoning_effort"]; got != "off" {
+		t.Fatalf("reasoning_effort = %#v, want off", got)
+	}
+
+	body = chatCompletionBody(ChatCompletionRequest{
+		AgentID:  "agent_1",
+		Messages: []ChatMessage{{Role: "user", Content: "hello"}},
+	})
+	if _, ok := body["reasoning_effort"]; ok {
+		t.Fatalf("reasoning_effort must be absent when unspecified: %#v", body)
+	}
+}
+
+func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
+	options := ChatRunOptions{
+		AgentID:         "agent_1",
+		Message:         "hello",
+		ReasoningEffort: ReasoningEffortMedium,
+		ExtraBody:       map[string]any{"reasoning_effort": "low"},
+	}
+	payload := buildRunPayload(options, true)
+
+	if got := chatCompletionBody(payload)["reasoning_effort"]; got != "medium" {
+		t.Fatalf("reasoning_effort = %#v, want medium", got)
+	}
+}
