@@ -153,6 +153,39 @@ if err != nil {
 fmt.Printf("server=%#v tools=%#v result=%#v\n", server, tools, result)
 ```
 
+## Bind an MCP Server to a Skill
+
+Use the UUID returned by MCP registration, or the UUID of an `active` MCP
+Server returned by `client.Mcps.List(...)` that is visible to the current user.
+Do not put a `server_url` in a Skill payload.
+
+```go
+mcpServerID := "<registered-mcp-server-uuid>"
+
+skill, err := client.Skills.Register(ctx, map[string]any{
+	"name":        "mcp-research",
+	"description": "Research with the registered MCP server.",
+	"instruction": "Use the MCP tools when they are relevant.",
+	"config": map[string]any{
+		"mcp_servers": []string{mcpServerID},
+	},
+	"enabled": true,
+	"public":  false,
+})
+if err != nil {
+	panic(err)
+}
+fmt.Printf("%#v\n", skill)
+```
+
+`config.mcp_servers` attaches MCP Servers, while `required_tools` binds
+registered Tools; do not represent an MCP Server UUID as a Tool reference.
+Gateway resolves each UUID, enforces active status and visibility, and passes
+the controlled runtime configuration to Fabric. This Skill binding path
+requires an unauthenticated Streamable HTTP endpoint. The MCP Server `public`
+field controls cross-production-line sharing, so keep it false unless sharing
+is intended.
+
 ## Chat Requests
 
 Use `Message` for the common single-user-message case:
