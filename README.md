@@ -224,6 +224,16 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 
 `request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
 
+Set `ChatRunOptions.ReasoningEffort` to override an Agent's saved reasoning setting for one chat only. Leave it empty when the user did not choose a level, so the SDK omits the field and preserves the Agent and Fabric defaults. Agent Gateway accepts `off`, `on`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`; callers must select a level supported by the Agent's actual model route.
+
+```go
+result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
+	AgentID:         "33333333-3333-4333-8333-333333333333",
+	ReasoningEffort: seaagentsdk.ReasoningEffortHigh,
+	Message:         "Analyze this request carefully.",
+})
+```
+
 ## Streaming
 
 SSE is the default stream transport and works well with most HTTP gateways and proxies:
@@ -505,6 +515,11 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"pre_skills": []string{
 		"11111111-1111-4111-8111-111111111111",
 	},
+	"model": map[string]any{
+		"default":          "gpt-5.5",
+		"allowed":          []string{"gpt-5.5"},
+		"reasoning_effort": "medium",
+	},
 	"config": map[string]any{
 		"temperature": 0.2,
 		"max_turns":   6,
@@ -512,6 +527,11 @@ agent, err := client.Agents.Register(ctx, map[string]any{
 	"enabled": true,
 })
 ```
+
+`model.reasoning_effort` saves the Agent's default reasoning level. A chat
+request without `ChatRunOptions.ReasoningEffort` uses this default; an explicit
+`ChatRunOptions.ReasoningEffort` overrides it for that chat only. For the full
+create or update payload, put the same object under `model_config`.
 
 ### Agent Skill preload
 
@@ -730,7 +750,7 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 
 Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`; access to a private server's `Tools` and `Call` operations requires its owner or `X-Admin-Access: 1`.
 
-Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
+Pass list filters through the corresponding option struct. `ReasoningEffort` is a first-class chat option; keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 
 ## Verify And Protect Data
 

@@ -281,16 +281,17 @@ func buildRunPayload(options ChatRunOptions, stream bool) ChatCompletionRequest 
 	}
 
 	return ChatCompletionRequest{
-		RequestID:   options.RequestID,
-		AgentID:     options.AgentID,
-		Category:    options.Category,
-		AgentConfig: options.AgentConfig,
-		SkillIDs:    options.SkillIDs,
-		Messages:    messages,
-		Metadata:    options.Metadata,
-		Stream:      stream,
-		Headers:     options.Headers,
-		ExtraBody:   options.ExtraBody,
+		RequestID:       options.RequestID,
+		AgentID:         options.AgentID,
+		Category:        options.Category,
+		AgentConfig:     options.AgentConfig,
+		SkillIDs:        options.SkillIDs,
+		Messages:        messages,
+		Metadata:        options.Metadata,
+		Stream:          stream,
+		Headers:         options.Headers,
+		ExtraBody:       options.ExtraBody,
+		ReasoningEffort: options.ReasoningEffort,
 	}
 }
 
@@ -319,6 +320,9 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	}
 	for key, value := range payload.ExtraBody {
 		body[key] = value
+	}
+	if payload.ReasoningEffort != "" {
+		body["reasoning_effort"] = string(payload.ReasoningEffort)
 	}
 	return body
 }

@@ -113,30 +113,48 @@ type ChatMessage struct {
 	Content any    `json:"content"`
 }
 
+// ReasoningEffort 是用户可选的推理强度档位，例如 low、medium、high。
+// SDK 会将它作为 reasoning_effort 发给 Agent Gateway。
+type ReasoningEffort string
+
+const (
+	ReasoningEffortOff     ReasoningEffort = "off"
+	ReasoningEffortOn      ReasoningEffort = "on"
+	ReasoningEffortMinimal ReasoningEffort = "minimal"
+	ReasoningEffortLow     ReasoningEffort = "low"
+	ReasoningEffortMedium  ReasoningEffort = "medium"
+	ReasoningEffortHigh    ReasoningEffort = "high"
+	ReasoningEffortXHigh   ReasoningEffort = "xhigh"
+	ReasoningEffortMax     ReasoningEffort = "max"
+	ReasoningEffortUltra   ReasoningEffort = "ultra"
+)
+
 type ChatCompletionRequest struct {
-	RequestID   string            `json:"request_id,omitempty"`
-	AgentID     string            `json:"agent_id,omitempty"`
-	Category    string            `json:"category,omitempty"`
-	AgentConfig map[string]any    `json:"agent_config,omitempty"`
-	SkillIDs    []string          `json:"skill_ids,omitempty"`
-	Messages    []ChatMessage     `json:"messages"`
-	Metadata    map[string]any    `json:"metadata,omitempty"`
-	Stream      bool              `json:"stream,omitempty"`
-	Headers     map[string]string `json:"-"`
-	ExtraBody   map[string]any    `json:"-"`
+	RequestID       string            `json:"request_id,omitempty"`
+	AgentID         string            `json:"agent_id,omitempty"`
+	Category        string            `json:"category,omitempty"`
+	AgentConfig     map[string]any    `json:"agent_config,omitempty"`
+	SkillIDs        []string          `json:"skill_ids,omitempty"`
+	Messages        []ChatMessage     `json:"messages"`
+	Metadata        map[string]any    `json:"metadata,omitempty"`
+	Stream          bool              `json:"stream,omitempty"`
+	Headers         map[string]string `json:"-"`
+	ExtraBody       map[string]any    `json:"-"`
+	ReasoningEffort ReasoningEffort   `json:"reasoning_effort,omitempty"`
 }
 
 type ChatRunOptions struct {
-	RequestID   string
-	AgentID     string
-	Category    string
-	AgentConfig map[string]any
-	SkillIDs    []string
-	Message     string
-	Messages    []ChatMessage
-	Metadata    map[string]any
-	Headers     map[string]string
-	ExtraBody   map[string]any
+	RequestID       string
+	AgentID         string
+	Category        string
+	AgentConfig     map[string]any
+	SkillIDs        []string
+	Message         string
+	Messages        []ChatMessage
+	Metadata        map[string]any
+	Headers         map[string]string
+	ExtraBody       map[string]any
+	ReasoningEffort ReasoningEffort
 }
 
 type StreamTransport string
