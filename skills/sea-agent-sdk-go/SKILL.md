@@ -100,7 +100,7 @@ create and update payloads use `model_config.reasoning_effort` instead.
 
 ## Manage MCP Servers
 
-Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`; access to a private server's `Tools` and `Call` operations requires its owner or `X-Admin-Access: 1`.
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
 
 ## Bind MCP Servers To Skills
 
