@@ -188,6 +188,8 @@ is intended.
 
 ## Chat Requests
 
+When `ChatRunOptions.AgentID` is set, the SDK sends the same value in both the `X-Agent-ID` request header and the JSON `agent_id` field. The gateway gives the header priority during the compatibility rollout.
+
 Use `Message` for the common single-user-message case:
 
 ```go

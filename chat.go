@@ -36,7 +36,7 @@ type ChatResource struct {
 func (r *ChatResource) CreateCompletion(ctx context.Context, payload ChatCompletionRequest) (any, error) {
 	body := chatCompletionBody(payload)
 	var result any
-	err := r.transport.PostJSONWithHeaders(ctx, "/v1/chat/completions", body, payload.Headers, &result)
+	err := r.transport.PostJSONWithHeaders(ctx, "/v1/chat/completions", body, chatRequestHeaders(payload.Headers, body), &result)
 	return result, err
 }
 
@@ -53,15 +53,16 @@ func (r *ChatResource) StreamCompletion(ctx context.Context, payload ChatComplet
 	body := chatCompletionBody(payload)
 	body["stream"] = true
 	body["request_id"] = payload.RequestID
+	headers := chatRequestHeaders(payload.Headers, body)
 
 	initial := func() error {
 		if handlers.Transport == StreamTransportWS {
-			return r.transport.webSocketWithHeaders(ctx, "/v1/chat/completions/ws", nil, body, payload.Headers, processorWebSocketCallback(processor))
+			return r.transport.webSocketWithHeaders(ctx, "/v1/chat/completions/ws", nil, body, headers, processorWebSocketCallback(processor))
 		}
-		return r.transport.requestStreamWithHeadersCallback(ctx, "POST", "/v1/chat/completions", nil, body, payload.Headers, processorSSECallback(processor))
+		return r.transport.requestStreamWithHeadersCallback(ctx, "POST", "/v1/chat/completions", nil, body, headers, processorSSECallback(processor))
 	}
 	replay := func(runID string, afterSeq int64) error {
-		return r.streamExistingOnce(ctx, runID, afterSeq, payload.Headers, handlers.Transport, processor)
+		return r.streamExistingOnce(ctx, runID, afterSeq, headers, handlers.Transport, processor)
 	}
 	return runStreamWithResume(ctx, handlers, processor, initial, replay)
 }
@@ -325,4 +326,20 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 		body["reasoning_effort"] = string(payload.ReasoningEffort)
 	}
 	return body
+}
+
+func chatRequestHeaders(headers map[string]string, body map[string]any) map[string]string {
+	agentID, ok := body["agent_id"].(string)
+	if !ok || strings.TrimSpace(agentID) == "" {
+		return headers
+	}
+
+	result := make(map[string]string, len(headers)+1)
+	for key, value := range headers {
+		if !strings.EqualFold(key, "X-Agent-ID") {
+			result[key] = value
+		}
+	}
+	result["X-Agent-ID"] = agentID
+	return result
 }
