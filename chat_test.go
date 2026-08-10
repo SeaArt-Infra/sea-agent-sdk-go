@@ -98,3 +98,24 @@ func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 		t.Fatalf("reasoning_effort = %#v, want medium", got)
 	}
 }
+
+func TestChatRequestHeadersAddsAgentIDWithoutMutatingProvidedHeaders(t *testing.T) {
+	provided := map[string]string{
+		"x-agent-id": "stale-agent",
+		"X-Trace-ID": "trace-1",
+	}
+	headers := chatRequestHeaders(provided, map[string]any{"agent_id": "agent_1"})
+
+	if headers["X-Agent-ID"] != "agent_1" {
+		t.Fatalf("X-Agent-ID = %q, want agent_1", headers["X-Agent-ID"])
+	}
+	if headers["X-Trace-ID"] != "trace-1" {
+		t.Fatalf("X-Trace-ID = %q, want trace-1", headers["X-Trace-ID"])
+	}
+	if _, exists := headers["x-agent-id"]; exists {
+		t.Fatalf("headers retained duplicate agent header: %#v", headers)
+	}
+	if provided["x-agent-id"] != "stale-agent" {
+		t.Fatalf("provided headers were mutated: %#v", provided)
+	}
+}
