@@ -73,6 +73,8 @@ func main() {
 }
 ```
 
+When `ChatRunOptions.AgentID` is set, the SDK sends the same value in both the `X-Agent-ID` request header and the JSON `agent_id` field. The gateway gives the header priority during the compatibility rollout.
+
 Check gateway health:
 
 ```go
@@ -646,6 +648,8 @@ Use `NewClientFromConfig("")` only when the service intentionally shares `~/.sea
 ## Run And Stream Chat
 
 Use `Message` for a single user turn and `Messages` for a multi-turn or multimodal request. Do not set both `AgentConfig` and `SkillIDs`; `SkillIDs` add temporary Skills to an Agent run.
+
+When `AgentID` is set, the SDK sends the same value in `X-Agent-ID` and the JSON `agent_id` field; the gateway gives the header priority during the compatibility rollout.
 
 ```go
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
