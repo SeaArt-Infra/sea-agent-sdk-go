@@ -322,7 +322,13 @@ func (t *Transport) buildURL(path string, query QueryParams) (string, error) {
 		basePath += "/"
 	}
 	relativePath := strings.TrimLeft(path, "/")
-	base.Path = strings.ReplaceAll(basePath+relativePath, "//", "/")
+	joinedPath := strings.ReplaceAll(basePath+relativePath, "//", "/")
+	decodedPath, err := url.PathUnescape(joinedPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid escaped request path: %w", err)
+	}
+	base.Path = decodedPath
+	base.RawPath = joinedPath
 
 	values := base.Query()
 	for key, value := range query {

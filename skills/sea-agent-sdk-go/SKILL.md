@@ -1,6 +1,6 @@
 ---
 name: sea-agent-sdk-go
-description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
+description: Integrate Go services with SeaArt Agent Gateway through the official sea-agent-sdk-go. Use for catalog lookup, Tool, MCP Server, Skill, Agent, Hook, chat completion, SSE or WebSocket streaming, chat replay, and cancellation in Go.
 ---
 
 # SeaAgent Go SDK
@@ -15,7 +15,7 @@ Use `github.com/SeaArt-Infra/sea-agent-sdk-go` for Agent Gateway work in Go. Pre
 4. Use the resource on the client that matches the operation.
 5. Run a focused Go test or `go test ./...` after changing the integration.
 
-The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, Skill, and Agent writes when the gateway requires owner or operator metadata.
+The SDK appends `/agent-v2` when the configured endpoint does not already contain it. Store the API key outside source control. Send `X-User-ID` for Tool, MCP Server, Skill, and Agent writes when the gateway requires owner or operator metadata.
 
 ## Create A Client
 
@@ -68,6 +68,23 @@ fmt.Println(text)
 
 Preserve the default reconnect behavior unless product requirements demand a different retry policy. Use `Chat.Events`, `Chat.Stream`, or `Chat.Cancel` to replay, resume, or cancel an existing chat.
 
+## Per-Chat Reasoning
+
+Use the top-level `ChatRunOptions.ReasoningEffort` option only to override the
+selected Agent for this run. Leave it empty when the caller did not choose a
+level so the Agent and Fabric defaults remain effective. The supported platform
+values are `off`, `on`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, and
+`ultra`; use the exported `ReasoningEffort*` constants and only select values
+verified for the Agent's model route. Do not send provider-specific thinking
+fields through `ExtraBody`.
+
+## Agent Default Reasoning
+
+To save a default level on an Agent, set `model.reasoning_effort` in the
+concise registration payload. A chat without `ChatRunOptions.ReasoningEffort`
+uses that default; an explicit chat value applies only to that chat. Full
+create and update payloads use `model_config.reasoning_effort` instead.
+
 ## Select Resources
 
 | Task | Client resource |
@@ -75,10 +92,41 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 | Health or metrics | `System` |
 | Resolved catalog entries | `Catalog` |
 | Tool registration and resolution | `Tools` |
+| MCP Server registration and tool proxying | `Mcps` |
 | Skill registration and listing | `Skills` |
 | Agent registration and inspection | `Agents` |
 | Multimodal charge reservation hook | `Hooks` |
 | Chat, streaming, replay, cancellation | `Chat` |
+
+## Manage MCP Servers
+
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
+
+## Bind MCP Servers To Skills
+
+Select an `active`, current-user-visible MCP Server UUID from `client.Mcps`
+registration or listing; never accept a `server_url` in a Skill payload.
+
+```go
+_, err := client.Skills.Register(ctx, map[string]any{
+	"name":        "mcp-research",
+	"instruction": "Use the registered MCP tools when relevant.",
+	"config": map[string]any{
+		"mcp_servers": []string{"<registered-mcp-server-uuid>"},
+	},
+	"enabled": true,
+})
+if err != nil {
+	panic(err)
+}
+```
+
+`config.mcp_servers` is separate from `required_tools`: do not represent an
+MCP Server UUID as a Tool reference. Gateway resolves the UUID and enforces
+its active status and visibility. Skill runtime binding currently supports
+an unauthenticated Streamable HTTP endpoint. The MCP Server `public` field
+controls cross-production-line sharing, so keep it false unless sharing is
+intended.
 
 Pass list filters through the corresponding option struct. Keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 

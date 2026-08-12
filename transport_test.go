@@ -95,3 +95,15 @@ func TestBuildURLAddsAgentV2Fallback(t *testing.T) {
 		t.Fatalf("buildURL() = %q, want %q", got, want)
 	}
 }
+
+func TestBuildURLPreservesEscapedPathSegments(t *testing.T) {
+	transport := NewTransport("http://127.0.0.1:8080", "", nil, nil)
+	got, err := transport.buildURL("/v1/mcps/"+urlEscape("mcp/1"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "http://127.0.0.1:8080/agent-v2/v1/mcps/mcp%2F1"
+	if got != want {
+		t.Fatalf("buildURL() = %q, want %q", got, want)
+	}
+}
