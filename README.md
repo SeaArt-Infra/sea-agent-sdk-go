@@ -11,7 +11,7 @@ Go SDK for `agent-gateway`. It wraps the gateway APIs for catalog lookup, resour
 | System | `client.System` | Health and metrics checks |
 | Catalog | `client.Catalog` | List resolved catalog entries |
 | Tools | `client.Tools` | Register, list, update, delete, and resolve tools |
-| MCPs | `client.Mcps` | Register MCP servers and proxy tools/list and tools/call |
+| MCPs | `client.Mcps` | Register MCP servers; `ConnectionInfo` for standard MCP client access (`Tools`/`Call` deprecated) |
 | Skills | `client.Skills` | Register, list, update, and delete skills |
 | Agents | `client.Agents` | Register, list, update, delete, and inspect agents |
 | Hooks | `client.Hooks` | Manage the multimodal charge reservation hook |
@@ -126,6 +126,8 @@ Pagination follows the gateway behavior: `Limit` defaults to 20 when omitted or 
 
 Use `client.Mcps` to register a streamable HTTP or legacy SSE MCP server. Gateway stores configured upstream headers without returning their values; responses expose only `header_keys`. MCP mutations require `X-User-ID` and `X-Flag: 1` headers.
 
+`Tools` and `Call` are convenience wrappers over a private REST shape and are **deprecated**. To speak MCP to a registered server, call `ConnectionInfo` and hand the returned endpoint and headers to an official MCP SDK client — the gateway exposes a standard streamable-HTTP endpoint, so the SDK deliberately does not implement the protocol itself. Upstream registry credentials are injected by the gateway and never appear in these headers.
+
 ```go
 server, err := client.Mcps.Register(ctx, map[string]any{
 	"name":       "sea-search",
@@ -139,20 +141,28 @@ if err != nil {
 	panic(err)
 }
 
-tools, err := client.Mcps.Tools(ctx, "mcp-server-id")
+// Standard MCP client via the official go-sdk (streamable-http):
+// import "github.com/modelcontextprotocol/go-sdk/mcp"
+info, err := client.Mcps.ConnectionInfo(server["id"].(string))
+if err != nil {
+	panic(err)
+}
+session, err := mcp.NewClient(&mcp.Implementation{Name: "app", Version: "v1"}, nil).
+	Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint:             info.URL,
+		HTTPClient:           info.HTTPClient(nil),
+		DisableStandaloneSSE: true,
+	}, nil)
+if err != nil {
+	panic(err)
+}
+defer session.Close()
+tools, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 if err != nil {
 	panic(err)
 }
 
-result, err := client.Mcps.Call(ctx, "mcp-server-id", map[string]any{
-	"name":      "search",
-	"arguments": map[string]any{"query": "hello"},
-})
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("server=%#v tools=%#v result=%#v\n", server, tools, result)
+fmt.Printf("server=%#v tools=%#v\n", server, tools)
 ```
 
 ## Bind an MCP Server to a Skill
@@ -787,7 +797,9 @@ Preserve the default reconnect behavior unless product requirements demand a dif
 
 ## Manage MCP Servers
 
-Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, and `ConnectionInfo`. Registration and updates accept `streamable-http` or legacy `sse` transports. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
+
+To call MCP tools, use `ConnectionInfo(mcpID)` and pass `info.URL` plus `info.HTTPClient(nil)` to an official MCP SDK client (`modelcontextprotocol/go-sdk`, `StreamableClientTransport`); the gateway endpoint is standard streamable-HTTP and the SDK does not implement the protocol itself. Upstream credentials stay server-side. `Tools` and `Call` still work but are deprecated private REST shells; they only support streamable-http upstreams.
 
 Pass list filters through the corresponding option struct. `ReasoningEffort` is a first-class chat option; keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 
