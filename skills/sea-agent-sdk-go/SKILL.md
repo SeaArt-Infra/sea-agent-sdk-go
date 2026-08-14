@@ -100,7 +100,9 @@ create and update payloads use `model_config.reasoning_effort` instead.
 
 ## Manage MCP Servers
 
-Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, `Tools`, and `Call`. Registration and updates accept `streamable-http` or legacy `sse` transports; `Call` accepts `{ "name": ..., "arguments": ..., "timeout_ms": ... }`. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
+Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, and `ConnectionInfo`. Registration and updates accept `streamable-http` or legacy `sse` transports. Include both `X-User-ID` and `X-Flag: 1` for MCP mutations. Gateway never returns stored upstream header values, only `header_keys`.
+
+To call MCP tools, use `ConnectionInfo(mcpID)` and pass `info.URL` plus `info.HTTPClient(nil)` to an official MCP SDK client (`modelcontextprotocol/go-sdk`, `StreamableClientTransport`); the gateway endpoint is standard streamable-HTTP and the SDK does not implement the protocol itself. Upstream credentials stay server-side. `Tools` and `Call` still work but are deprecated private REST shells; they only support streamable-http upstreams.
 
 ## Bind MCP Servers To Skills
 
