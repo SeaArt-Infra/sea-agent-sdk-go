@@ -256,7 +256,6 @@ Attach request metadata and per-request headers when gateway or worker tracing n
 result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	RequestID: "req_123",
 	AgentID:   "33333333-3333-4333-8333-333333333333",
-	Category:  "fabric",
 	Message:   "Summarize this request context.",
 	Metadata: map[string]any{
 		"session_id": "sess_123",
@@ -270,6 +269,10 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 ```
 
 `request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
+
+## Agent Categories
+
+Agent Gateway accepts `fabric`, `seaactor`, and `adk`. They map to the Fabric, SeaActor, and ADK scheduler pools respectively. When a chat references a registered Agent with `AgentID`, leave `Category` empty to use that Agent's saved category. A non-empty request category takes precedence over the saved value, so use it only for an inline Agent config or an intentional scheduler override.
 
 Set `ChatRunOptions.ReasoningEffort` to override an Agent's saved reasoning setting for one chat only. Leave it empty when the user did not choose a level, so the SDK omits the field and preserves the Agent and Fabric defaults. Agent Gateway accepts `off`, `on`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`; callers must select a level supported by the Agent's actual model route.
 

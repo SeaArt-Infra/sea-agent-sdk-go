@@ -85,6 +85,14 @@ concise registration payload. A chat without `ChatRunOptions.ReasoningEffort`
 uses that default; an explicit chat value applies only to that chat. Full
 create and update payloads use `model_config.reasoning_effort` instead.
 
+## Agent Categories
+
+Agent Gateway accepts `fabric`, `seaactor`, and `adk`, which map to the Fabric,
+SeaActor, and ADK scheduler pools. When a chat uses a registered `AgentID`,
+leave `ChatRunOptions.Category` empty to use the Agent's saved category. A
+non-empty request category overrides that value; use it only for an inline
+Agent config or an intentional scheduler override.
+
 ## Select Resources
 
 | Task | Client resource |
