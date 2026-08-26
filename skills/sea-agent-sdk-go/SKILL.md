@@ -85,6 +85,13 @@ concise registration payload. A chat without `ChatRunOptions.ReasoningEffort`
 uses that default; an explicit chat value applies only to that chat. Full
 create and update payloads use `model_config.reasoning_effort` instead.
 
+## Agent Output Limit
+
+Use `config.max_output_tokens` in a concise registration payload or
+`agent_config.max_output_tokens` in a low-level create/update payload to limit
+each LLM call. It must be a positive integer and is independent from
+`max_turns`; omit it to keep the upstream model default.
+
 ## Agent Categories
 
 Agent Gateway accepts `fabric`, `seaactor`, and `adk`, which map to the Fabric,
