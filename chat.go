@@ -289,6 +289,8 @@ func buildRunPayload(options ChatRunOptions, stream bool) ChatCompletionRequest 
 		SkillIDs:        options.SkillIDs,
 		Messages:        messages,
 		Metadata:        options.Metadata,
+		UserID:          options.UserID,
+		SessionID:       options.SessionID,
 		Stream:          stream,
 		Headers:         options.Headers,
 		ExtraBody:       options.ExtraBody,
@@ -318,6 +320,12 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	}
 	if payload.Metadata != nil {
 		body["metadata"] = payload.Metadata
+	}
+	if payload.UserID != "" {
+		body["user_id"] = payload.UserID
+	}
+	if payload.SessionID != "" {
+		body["session_id"] = payload.SessionID
 	}
 	for key, value := range payload.ExtraBody {
 		body[key] = value
