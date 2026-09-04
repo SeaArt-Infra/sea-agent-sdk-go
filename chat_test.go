@@ -65,6 +65,22 @@ func TestChatCompletionBodyIncludesSkillIDs(t *testing.T) {
 	}
 }
 
+func TestChatCompletionBodyIncludesTopLevelIdentity(t *testing.T) {
+	body := chatCompletionBody(ChatCompletionRequest{
+		AgentID:   "agent_1",
+		UserID:    "user_1",
+		SessionID: "session_1",
+		Messages:  []ChatMessage{{Role: "user", Content: "hello"}},
+	})
+
+	if got := body["user_id"]; got != "user_1" {
+		t.Fatalf("user_id = %#v, want user_1", got)
+	}
+	if got := body["session_id"]; got != "session_1" {
+		t.Fatalf("session_id = %#v, want session_1", got)
+	}
+}
+
 func TestChatCompletionBodyIncludesReasoningEffortOnlyWhenSpecified(t *testing.T) {
 	body := chatCompletionBody(ChatCompletionRequest{
 		AgentID:         "agent_1",
@@ -89,6 +105,8 @@ func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 	options := ChatRunOptions{
 		AgentID:         "agent_1",
 		Message:         "hello",
+		UserID:          "user_1",
+		SessionID:       "session_1",
 		ReasoningEffort: ReasoningEffortMedium,
 		ExtraBody:       map[string]any{"reasoning_effort": "low"},
 	}
@@ -96,6 +114,9 @@ func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 
 	if got := chatCompletionBody(payload)["reasoning_effort"]; got != "medium" {
 		t.Fatalf("reasoning_effort = %#v, want medium", got)
+	}
+	if body := chatCompletionBody(payload); body["user_id"] != "user_1" || body["session_id"] != "session_1" {
+		t.Fatalf("top-level identity = %#v", body)
 	}
 }
 

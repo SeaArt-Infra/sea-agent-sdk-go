@@ -257,10 +257,10 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	RequestID: "req_123",
 	AgentID:   "33333333-3333-4333-8333-333333333333",
 	Message:   "Summarize this request context.",
+	UserID:    "user_456",
+	SessionID: "sess_123",
 	Metadata: map[string]any{
-		"session_id": "sess_123",
-		"user_id":    "user_456",
-		"trace_id":   "trace_789",
+		"trace_id": "trace_789",
 	},
 	Headers: map[string]string{
 		"X-Trace-ID": "trace_789",
@@ -268,7 +268,7 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
-`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
+`request_id`, `category`, `user_id`, `session_id`, and `metadata` are sent in the chat body. The top-level identity fields take precedence over `metadata.user_id` and `metadata.session_id`; metadata remains a compatibility fallback. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
 
 ## Agent Categories
 
@@ -618,8 +618,9 @@ With a complete scope in a persistent session, both fields default to `true`:
   asynchronous extraction; it does not synchronously save a memory during the
   chat request.
 
-No `metadata.session_id` creates an ephemeral run, where both fields default
-to `false`. A persistent run also needs `metadata.user_id`; missing scope
+No top-level `session_id` (falling back to `metadata.session_id`) creates an
+ephemeral run, where both fields default to `false`. A persistent run also
+needs top-level `user_id` (falling back to `metadata.user_id`); missing scope
 identity, user memory opt-out, or Worker `MEMORY_MEDIUM_TERM_ENABLED=false`
 forces both fields off. Stored Agent policy and the top-level chat-request
 `memory_policy` can only restrict a field, never reopen a higher-level closure.
