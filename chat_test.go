@@ -2,6 +2,7 @@ package seaagentsdk
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -101,6 +102,17 @@ func TestChatCompletionBodyIncludesReasoningEffortOnlyWhenSpecified(t *testing.T
 	}
 }
 
+func TestChatRequestsDoNotExposeExtraBody(t *testing.T) {
+	for _, requestType := range []reflect.Type{
+		reflect.TypeFor[ChatCompletionRequest](),
+		reflect.TypeFor[ChatRunOptions](),
+	} {
+		if _, ok := requestType.FieldByName("ExtraBody"); ok {
+			t.Fatalf("%s must not expose ExtraBody", requestType.Name())
+		}
+	}
+}
+
 func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 	options := ChatRunOptions{
 		AgentID:         "agent_1",
@@ -108,7 +120,6 @@ func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 		UserID:          "user_1",
 		SessionID:       "session_1",
 		ReasoningEffort: ReasoningEffortMedium,
-		ExtraBody:       map[string]any{"reasoning_effort": "low"},
 	}
 	payload := buildRunPayload(options, true)
 
