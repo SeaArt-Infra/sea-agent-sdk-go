@@ -141,7 +141,6 @@ type ChatCompletionRequest struct {
 	SessionID       string            `json:"session_id,omitempty"`
 	Stream          bool              `json:"stream,omitempty"`
 	Headers         map[string]string `json:"-"`
-	ExtraBody       map[string]any    `json:"-"`
 	ReasoningEffort ReasoningEffort   `json:"reasoning_effort,omitempty"`
 }
 
@@ -157,7 +156,6 @@ type ChatRunOptions struct {
 	UserID          string
 	SessionID       string
 	Headers         map[string]string
-	ExtraBody       map[string]any
 	ReasoningEffort ReasoningEffort
 }
 
