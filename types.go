@@ -137,6 +137,8 @@ type ChatCompletionRequest struct {
 	SkillIDs        []string          `json:"skill_ids,omitempty"`
 	Messages        []ChatMessage     `json:"messages"`
 	Metadata        map[string]any    `json:"metadata,omitempty"`
+	UserID          string            `json:"user_id,omitempty"`
+	SessionID       string            `json:"session_id,omitempty"`
 	Stream          bool              `json:"stream,omitempty"`
 	Headers         map[string]string `json:"-"`
 	ExtraBody       map[string]any    `json:"-"`
@@ -152,6 +154,8 @@ type ChatRunOptions struct {
 	Message         string
 	Messages        []ChatMessage
 	Metadata        map[string]any
+	UserID          string
+	SessionID       string
 	Headers         map[string]string
 	ExtraBody       map[string]any
 	ReasoningEffort ReasoningEffort

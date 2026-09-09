@@ -257,10 +257,10 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 	RequestID: "req_123",
 	AgentID:   "33333333-3333-4333-8333-333333333333",
 	Message:   "Summarize this request context.",
+	UserID:    "user_456",
+	SessionID: "sess_123",
 	Metadata: map[string]any{
-		"session_id": "sess_123",
-		"user_id":    "user_456",
-		"trace_id":   "trace_789",
+		"trace_id": "trace_789",
 	},
 	Headers: map[string]string{
 		"X-Trace-ID": "trace_789",
@@ -268,11 +268,11 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
-`request_id`, `category`, and `metadata` are sent in the chat body. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
+`request_id`, `category`, `user_id`, `session_id`, and `metadata` are sent in the chat body. The top-level identity fields take precedence over `metadata.user_id` and `metadata.session_id`; metadata remains a compatibility fallback. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
 
 ## Agent Categories
 
-Agent Gateway accepts `fabric`, `seaactor`, and `adk`. They map to the Fabric, SeaActor, and ADK scheduler pools respectively. When a chat references a registered Agent with `AgentID`, leave `Category` empty to use that Agent's saved category. A non-empty request category takes precedence over the saved value, so use it only for an inline Agent config or an intentional scheduler override.
+Agent Gateway accepts `fabric`, `seaactor`, `adk`, and `dsh`. They map to the Fabric, SeaActor, ADK, and DeepSeek Harness scheduler pools respectively. When a chat references a registered Agent with `AgentID`, leave `Category` empty to use that Agent's saved category. A non-empty request category takes precedence over the saved value, so use it only for an inline Agent config or an intentional scheduler override.
 
 Set `ChatRunOptions.ReasoningEffort` to override an Agent's saved reasoning setting for one chat only. Leave it empty when the user did not choose a level, so the SDK omits the field and preserves the Agent and Fabric defaults. Agent Gateway accepts `off`, `on`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`; callers must select a level supported by the Agent's actual model route.
 
@@ -618,8 +618,9 @@ With a complete scope in a persistent session, both fields default to `true`:
   asynchronous extraction; it does not synchronously save a memory during the
   chat request.
 
-No `metadata.session_id` creates an ephemeral run, where both fields default
-to `false`. A persistent run also needs `metadata.user_id`; missing scope
+No top-level `session_id` (falling back to `metadata.session_id`) creates an
+ephemeral run, where both fields default to `false`. A persistent run also
+needs top-level `user_id` (falling back to `metadata.user_id`); missing scope
 identity, user memory opt-out, or Worker `MEMORY_MEDIUM_TERM_ENABLED=false`
 forces both fields off. Stored Agent policy and the top-level chat-request
 `memory_policy` can only restrict a field, never reopen a higher-level closure.

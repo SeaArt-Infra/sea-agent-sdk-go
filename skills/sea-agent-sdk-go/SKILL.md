@@ -68,6 +68,11 @@ fmt.Println(text)
 
 Preserve the default reconnect behavior unless product requirements demand a different retry policy. Use `Chat.Events`, `Chat.Stream`, or `Chat.Cancel` to replay, resume, or cancel an existing chat.
 
+Pass terminal-user identity with `ChatRunOptions.UserID` and persistent
+conversation identity with `ChatRunOptions.SessionID`. These top-level fields
+take precedence over `metadata.user_id` and `metadata.session_id`, which remain
+compatibility fallbacks.
+
 ## Per-Chat Reasoning
 
 Use the top-level `ChatRunOptions.ReasoningEffort` option only to override the
@@ -94,8 +99,8 @@ each LLM call. It must be a positive integer and is independent from
 
 ## Agent Categories
 
-Agent Gateway accepts `fabric`, `seaactor`, and `adk`, which map to the Fabric,
-SeaActor, and ADK scheduler pools. When a chat uses a registered `AgentID`,
+Agent Gateway accepts `fabric`, `seaactor`, `adk`, and `dsh`, which map to the Fabric,
+SeaActor, ADK, and DeepSeek Harness scheduler pools. When a chat uses a registered `AgentID`,
 leave `ChatRunOptions.Category` empty to use the Agent's saved category. A
 non-empty request category overrides that value; use it only for an inline
 Agent config or an intentional scheduler override.
@@ -175,8 +180,8 @@ For a complete persistent session, `medium_term.recall` and
 `medium_term.learn` both default to `true`. `recall` retrieves relevant
 semantic memory as background context; `learn` queues a qualifying completed
 run for asynchronous extraction rather than saving it synchronously. Both
-default to `false` for ephemeral runs (no `metadata.session_id`) and are forced
-off by a missing memory scope, user opt-out, or Worker
+default to `false` for ephemeral runs (no top-level `session_id`, falling back
+to `metadata.session_id`) and are forced off by a missing memory scope, user opt-out, or Worker
 `MEMORY_MEDIUM_TERM_ENABLED=false`. Agent policy and request-level
 `memory_policy` only restrict; pass a request-level override through
 `ChatRunOptions.ExtraBody`. Long-term recall and writes remain disabled by
