@@ -66,6 +66,29 @@ func TestChatCompletionBodyIncludesSkillIDs(t *testing.T) {
 	}
 }
 
+func TestChatCompletionBodyIncludesInlineSkills(t *testing.T) {
+	body := chatCompletionBody(ChatCompletionRequest{
+		AgentID: "agent_1",
+		InlineSkills: []ChatInlineSkill{{
+			Name:        "request-policy",
+			Description: "Controls this request.",
+			Instruction: "Always answer briefly.",
+		}},
+		Messages: []ChatMessage{{Role: "user", Content: "hello"}},
+	})
+
+	values, ok := body["inline_skills"].([]ChatInlineSkill)
+	if !ok {
+		t.Fatalf("inline_skills type = %T, want []ChatInlineSkill", body["inline_skills"])
+	}
+	if len(values) != 1 {
+		t.Fatalf("inline_skills length = %d, want 1", len(values))
+	}
+	if values[0].Name != "request-policy" || values[0].Instruction != "Always answer briefly." {
+		t.Fatalf("inline_skills = %#v", values)
+	}
+}
+
 func TestChatCompletionBodyIncludesTopLevelIdentity(t *testing.T) {
 	body := chatCompletionBody(ChatCompletionRequest{
 		AgentID:   "agent_1",
@@ -128,6 +151,24 @@ func TestBuildRunPayloadForwardsReasoningEffort(t *testing.T) {
 	}
 	if body := chatCompletionBody(payload); body["user_id"] != "user_1" || body["session_id"] != "session_1" {
 		t.Fatalf("top-level identity = %#v", body)
+	}
+}
+
+func TestBuildRunPayloadForwardsInlineSkills(t *testing.T) {
+	options := ChatRunOptions{
+		AgentID: "agent_1",
+		Message: "hello",
+		InlineSkills: []ChatInlineSkill{{
+			Name:        "request-policy",
+			Description: "Controls this request.",
+			Instruction: "Always answer briefly.",
+		}},
+	}
+	payload := buildRunPayload(options, true)
+
+	values, ok := chatCompletionBody(payload)["inline_skills"].([]ChatInlineSkill)
+	if !ok || len(values) != 1 || values[0].Name != "request-policy" {
+		t.Fatalf("inline_skills = %#v", chatCompletionBody(payload)["inline_skills"])
 	}
 }
 

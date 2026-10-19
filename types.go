@@ -113,6 +113,13 @@ type ChatMessage struct {
 	Content any    `json:"content"`
 }
 
+// ChatInlineSkill is a request-scoped Markdown Skill for one chat run.
+type ChatInlineSkill struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Instruction string `json:"instruction"`
+}
+
 // ReasoningEffort 是用户可选的推理强度档位，例如 low、medium、high。
 // SDK 会将它作为 reasoning_effort 发给 Agent Gateway。
 type ReasoningEffort string
@@ -135,6 +142,7 @@ type ChatCompletionRequest struct {
 	Category        string            `json:"category,omitempty"`
 	AgentConfig     map[string]any    `json:"agent_config,omitempty"`
 	SkillIDs        []string          `json:"skill_ids,omitempty"`
+	InlineSkills    []ChatInlineSkill `json:"inline_skills,omitempty"`
 	Messages        []ChatMessage     `json:"messages"`
 	Metadata        map[string]any    `json:"metadata,omitempty"`
 	UserID          string            `json:"user_id,omitempty"`
@@ -150,6 +158,7 @@ type ChatRunOptions struct {
 	Category        string
 	AgentConfig     map[string]any
 	SkillIDs        []string
+	InlineSkills    []ChatInlineSkill
 	Message         string
 	Messages        []ChatMessage
 	Metadata        map[string]any

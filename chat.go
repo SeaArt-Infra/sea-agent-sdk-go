@@ -44,11 +44,7 @@ func (r *ChatResource) StreamCompletion(ctx context.Context, payload ChatComplet
 	processor := NewChatStreamProcessor(handlers)
 	payload.RequestID = strings.TrimSpace(payload.RequestID)
 	if payload.RequestID == "" {
-		if requestID, ok := payload.ExtraBody["request_id"].(string); ok && strings.TrimSpace(requestID) != "" {
-			payload.RequestID = strings.TrimSpace(requestID)
-		} else {
-			payload.RequestID = newStreamRequestID()
-		}
+		payload.RequestID = newStreamRequestID()
 	}
 	body := chatCompletionBody(payload)
 	body["stream"] = true
@@ -287,13 +283,13 @@ func buildRunPayload(options ChatRunOptions, stream bool) ChatCompletionRequest 
 		Category:        options.Category,
 		AgentConfig:     options.AgentConfig,
 		SkillIDs:        options.SkillIDs,
+		InlineSkills:    options.InlineSkills,
 		Messages:        messages,
 		Metadata:        options.Metadata,
 		UserID:          options.UserID,
 		SessionID:       options.SessionID,
 		Stream:          stream,
 		Headers:         options.Headers,
-		ExtraBody:       options.ExtraBody,
 		ReasoningEffort: options.ReasoningEffort,
 	}
 }
@@ -318,6 +314,9 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	if len(payload.SkillIDs) > 0 {
 		body["skill_ids"] = payload.SkillIDs
 	}
+	if len(payload.InlineSkills) > 0 {
+		body["inline_skills"] = payload.InlineSkills
+	}
 	if payload.Metadata != nil {
 		body["metadata"] = payload.Metadata
 	}
@@ -326,9 +325,6 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	}
 	if payload.SessionID != "" {
 		body["session_id"] = payload.SessionID
-	}
-	for key, value := range payload.ExtraBody {
-		body[key] = value
 	}
 	if payload.ReasoningEffort != "" {
 		body["reasoning_effort"] = string(payload.ReasoningEffort)
