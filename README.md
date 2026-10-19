@@ -221,6 +221,22 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
+Use `InlineSkills` to add request-scoped Markdown instructions without
+registering a Skill. They are limited to the current run, require `AgentID`,
+and cannot be combined with `AgentConfig`.
+
+```go
+result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
+	AgentID: "33333333-3333-4333-8333-333333333333",
+	InlineSkills: []seaagentsdk.ChatInlineSkill{{
+		Name:        "request-policy",
+		Description: "Controls this request.",
+		Instruction: "Always answer briefly.",
+	}},
+	Message: "Use the request policy for this run.",
+})
+```
+
 Use `Messages` for multi-turn conversations:
 
 ```go
@@ -268,7 +284,7 @@ result, err := client.Chat.Run(ctx, seaagentsdk.ChatRunOptions{
 })
 ```
 
-`request_id`, `category`, `user_id`, `session_id`, and `metadata` are sent in the chat body. The top-level identity fields take precedence over `metadata.user_id` and `metadata.session_id`; metadata remains a compatibility fallback. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Use `ExtraBody` for gateway fields that are not yet exposed as first-class SDK options.
+`request_id`, `category`, `user_id`, `session_id`, and `metadata` are sent in the chat body. The top-level identity fields take precedence over `metadata.user_id` and `metadata.session_id`; metadata remains a compatibility fallback. Custom headers are forwarded when the SDK creates non-streaming, SSE, or WebSocket chat requests. Every supported gateway chat field has a typed option; the SDK does not forward arbitrary body keys.
 
 ## Agent Categories
 
@@ -624,9 +640,9 @@ needs top-level `user_id` (falling back to `metadata.user_id`); missing scope
 identity, user memory opt-out, or Worker `MEMORY_MEDIUM_TERM_ENABLED=false`
 forces both fields off. Stored Agent policy and the top-level chat-request
 `memory_policy` can only restrict a field, never reopen a higher-level closure.
-For a per-run restriction, pass that top-level field through
-`ChatRunOptions.ExtraBody`. Long-term recall and writes remain disabled by
-default.
+Request-level `memory_policy` is a gateway body field; the typed SDK
+options do not expose a per-run override yet. Long-term recall and writes
+remain disabled by default.
 
 ## Skill Runtime Rules
 
@@ -805,7 +821,7 @@ Use `client.Mcps` for `Register`, `List`, `Get`, `Update`, `Delete`, and `Connec
 
 To call MCP tools, use `ConnectionInfo(mcpID)` and pass `info.URL` plus `info.HTTPClient(nil)` to an official MCP SDK client (`modelcontextprotocol/go-sdk`, `StreamableClientTransport`); the gateway endpoint is standard streamable-HTTP and the SDK does not implement the protocol itself. Upstream credentials stay server-side. `Tools` and `Call` still work but are deprecated private REST shells; they only support streamable-http upstreams.
 
-Pass list filters through the corresponding option struct. `ReasoningEffort` is a first-class chat option; keep custom gateway fields in `ExtraBody` only when the SDK has no typed option for them. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
+Pass list filters through the corresponding option struct. `ReasoningEffort` and `InlineSkills` are first-class chat options. Put request-specific HTTP headers in `ChatRunOptions.Headers`, not in the JSON body.
 
 ## Verify And Protect Data
 
