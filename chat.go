@@ -283,6 +283,7 @@ func buildRunPayload(options ChatRunOptions, stream bool) ChatCompletionRequest 
 		Category:        options.Category,
 		AgentConfig:     options.AgentConfig,
 		SkillIDs:        options.SkillIDs,
+		InlineSkills:    options.InlineSkills,
 		Messages:        messages,
 		Metadata:        options.Metadata,
 		UserID:          options.UserID,
@@ -312,6 +313,9 @@ func chatCompletionBody(payload ChatCompletionRequest) map[string]any {
 	}
 	if len(payload.SkillIDs) > 0 {
 		body["skill_ids"] = payload.SkillIDs
+	}
+	if len(payload.InlineSkills) > 0 {
+		body["inline_skills"] = payload.InlineSkills
 	}
 	if payload.Metadata != nil {
 		body["metadata"] = payload.Metadata
